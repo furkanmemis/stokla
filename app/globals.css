@@ -314,3 +314,22 @@ table.data button.rowbtn:focus-visible { outline: 3px solid var(--brand); outlin
 details.edit > summary { list-style: none; cursor: pointer; }
 details.edit > summary::-webkit-details-marker { display: none; }
 details.edit[open] > summary { margin-bottom: 12px; }
+
+/* ---------- loading ---------- */
+.loading { min-height: 50vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: var(--muted); }
+.loading-page { min-height: 100dvh; display: grid; place-items: center; }
+.loading-page .loading { min-height: 0; }
+.loading-text { font-weight: 700; font-size: 15px; letter-spacing: .02em; }
+.loading-text::after { content: "…"; }
+.loading-mark .box { transform-box: fill-box; transform-origin: 50% 100%; animation: stack 1.5s cubic-bezier(.3, .7, .3, 1) infinite; }
+.loading-mark .b1 { animation-delay: 0s; }
+.loading-mark .b2 { animation-delay: .15s; }
+.loading-mark .b3 { animation-delay: .3s; }
+@keyframes stack {
+  0% { opacity: 0; transform: translateY(-40%) scale(.9); }
+  25%, 70% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(8%) scale(.96); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-mark .box { animation: none; }
+}
