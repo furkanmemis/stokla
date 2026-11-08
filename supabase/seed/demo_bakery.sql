@@ -1,12 +1,13 @@
--- Demo data for a bakery: catalog with recipes and weights, plus one day of activity
--- (morning production, deliveries with expiry dates, sales spread over the day, a little waste).
+-- Demo data for a bakery: catalog with recipes and weights, one place ("Merkez") that makes and sells,
+-- and one day of activity (opening counts, deliveries with expiry dates, morning production into the
+-- pool and onto the shelf, sales spread over the day, a little waste).
 -- Run in the Supabase SQL editor. Set the business name below; it only fills an EMPTY business.
 -- Stock math goes through the normal stock functions, acting as the business admin, so stock and
 -- history stay consistent; only the timestamps are spread over the day afterwards.
 do $$
 declare
-  c_business constant text := 'Kayhan Pastanesi';  -- <- the business to fill
-  v_biz uuid; v_admin uuid; v_mov uuid;
+  c_business constant text := 'Örnek Pastane';  -- <- the business to fill
+  v_biz uuid; v_admin uuid; v_mov uuid; v_place uuid;
   v_today date := (now() at time zone 'Europe/Istanbul')::date;
   v_day0 timestamptz := ((now() at time zone 'Europe/Istanbul')::date)::timestamp at time zone 'Europe/Istanbul';
   v_at timestamptz;
@@ -20,42 +21,42 @@ begin
   end if;
 
   -- catalog
-  insert into ingredients (business_id, name, unit, stock, min_stock) values
-    (v_biz, 'Un', 'kg', 45, 15),
-    (v_biz, 'Toz şeker', 'kg', 18, 8),
-    (v_biz, 'Pudra şekeri', 'kg', 4, 2),
-    (v_biz, 'Tereyağı', 'kg', 9, 4),
-    (v_biz, 'Margarin', 'kg', 6, 3),
-    (v_biz, 'Yumurta', 'adet', 210, 60),
-    (v_biz, 'Süt', 'L', 14, 10),
-    (v_biz, 'Krema', 'L', 4.5, 5),
-    (v_biz, 'Bitter çikolata', 'kg', 2.6, 3),
-    (v_biz, 'Kakao', 'kg', 2, 1),
-    (v_biz, 'Taze meyve', 'kg', 3.5, 2),
-    (v_biz, 'Beyaz peynir', 'kg', 5, 2),
-    (v_biz, 'Krem peynir', 'kg', 3, 2),
-    (v_biz, 'Siyah zeytin', 'kg', 2.5, 1),
-    (v_biz, 'Susam', 'kg', 3, 1),
-    (v_biz, 'Maya', 'kg', 1.2, 0.5),
-    (v_biz, 'Pekmez', 'kg', 4, 1);
-  insert into products (business_id, name, unit, price, stock, min_stock, weight_g, sort) values
-    (v_biz, 'Peynirli poğaça', 'adet', 25, 0, 15, 80, 0),
-    (v_biz, 'Zeytinli poğaça', 'adet', 25, 0, 12, 80, 1),
-    (v_biz, 'Açma', 'adet', 22, 0, 12, 90, 2),
-    (v_biz, 'Simit', 'adet', 15, 0, 15, 100, 3),
-    (v_biz, 'Su böreği', 'porsiyon', 90, 0, 6, 200, 4),
-    (v_biz, 'Tuzlu kurabiye (250 g)', 'paket', 85, 10, 4, 250, 5),
-    (v_biz, 'Un kurabiyesi (250 g)', 'paket', 90, 9, 4, 250, 6),
-    (v_biz, 'Ekler', 'adet', 30, 0, 10, 60, 7),
-    (v_biz, 'Profiterol', 'porsiyon', 120, 0, 4, 180, 8),
-    (v_biz, 'Supangle', 'porsiyon', 90, 7, 4, 200, 9),
-    (v_biz, 'Trileçe dilim', 'dilim', 100, 8, 4, 160, 10),
-    (v_biz, 'Tiramisu dilim', 'dilim', 130, 6, 3, 140, 11),
-    (v_biz, 'Cheesecake dilim', 'dilim', 140, 0, 4, 140, 12),
-    (v_biz, 'Yaş pasta dilim', 'dilim', 110, 0, 6, 150, 13),
-    (v_biz, 'Çikolatalı pasta', 'bütün', 950, 1, 2, 1200, 14),
-    (v_biz, 'Meyveli pasta', 'bütün', 900, 1, 2, 1100, 15),
-    (v_biz, 'Doğum günü pastası (8 kişilik)', 'bütün', 1250, 0, 1, 1600, 16);
+  insert into ingredients (business_id, name, unit, min_stock) values
+    (v_biz, 'Un', 'kg', 15),
+    (v_biz, 'Toz şeker', 'kg', 8),
+    (v_biz, 'Pudra şekeri', 'kg', 2),
+    (v_biz, 'Tereyağı', 'kg', 4),
+    (v_biz, 'Margarin', 'kg', 3),
+    (v_biz, 'Yumurta', 'adet', 60),
+    (v_biz, 'Süt', 'L', 10),
+    (v_biz, 'Krema', 'L', 5),
+    (v_biz, 'Bitter çikolata', 'kg', 3),
+    (v_biz, 'Kakao', 'kg', 1),
+    (v_biz, 'Taze meyve', 'kg', 2),
+    (v_biz, 'Beyaz peynir', 'kg', 2),
+    (v_biz, 'Krem peynir', 'kg', 2),
+    (v_biz, 'Siyah zeytin', 'kg', 1),
+    (v_biz, 'Susam', 'kg', 1),
+    (v_biz, 'Maya', 'kg', 0.5),
+    (v_biz, 'Pekmez', 'kg', 1);
+  insert into products (business_id, name, unit, price, min_stock, weight_g, sort) values
+    (v_biz, 'Peynirli poğaça', 'adet', 25, 15, 80, 0),
+    (v_biz, 'Zeytinli poğaça', 'adet', 25, 12, 80, 1),
+    (v_biz, 'Açma', 'adet', 22, 12, 90, 2),
+    (v_biz, 'Simit', 'adet', 15, 15, 100, 3),
+    (v_biz, 'Su böreği', 'porsiyon', 90, 6, 200, 4),
+    (v_biz, 'Tuzlu kurabiye (250 g)', 'paket', 85, 4, 250, 5),
+    (v_biz, 'Un kurabiyesi (250 g)', 'paket', 90, 4, 250, 6),
+    (v_biz, 'Ekler', 'adet', 30, 10, 60, 7),
+    (v_biz, 'Profiterol', 'porsiyon', 120, 4, 180, 8),
+    (v_biz, 'Supangle', 'porsiyon', 90, 4, 200, 9),
+    (v_biz, 'Trileçe dilim', 'dilim', 100, 4, 160, 10),
+    (v_biz, 'Tiramisu dilim', 'dilim', 130, 3, 140, 11),
+    (v_biz, 'Cheesecake dilim', 'dilim', 140, 4, 140, 12),
+    (v_biz, 'Yaş pasta dilim', 'dilim', 110, 6, 150, 13),
+    (v_biz, 'Çikolatalı pasta', 'bütün', 950, 2, 1200, 14),
+    (v_biz, 'Meyveli pasta', 'bütün', 900, 2, 1100, 15),
+    (v_biz, 'Doğum günü pastası (8 kişilik)', 'bütün', 1250, 1, 1600, 16);
   insert into recipe_items (product_id, ingredient_id, qty)
   select p.id, i.id, r.qty from (values
     ('Peynirli poğaça', 'Un', 0.045),
@@ -156,17 +157,62 @@ begin
   perform set_config('request.jwt.claim.sub', v_admin::text, true);
   perform set_config('request.jwt.claims', json_build_object('sub', v_admin, 'role', 'authenticated')::text, true);
 
-  v_mov := receive_ingredient((select id from ingredients where business_id = v_biz and name = 'Süt'), 20, 'Sütçü', v_today - 0, v_today - 0 + 3);
+  -- one place that makes and sells; opening counts for ingredients and the shelf
+  if exists (select 1 from locations where business_id = v_biz) then
+    raise exception 'Bu işletmede zaten yer var; demo verisi sadece boş işletmeye yüklenir.';
+  end if;
+  v_place := save_place(null, 'Merkez', true, true, null);
+  perform count_ingredient(v_place, i.id, x.qty) from (values
+
+    ('Un', 45),
+    ('Toz şeker', 18),
+    ('Pudra şekeri', 4),
+    ('Tereyağı', 9),
+    ('Margarin', 6),
+    ('Yumurta', 210),
+    ('Süt', 14),
+    ('Krema', 4.5),
+    ('Bitter çikolata', 2.6),
+    ('Kakao', 2),
+    ('Taze meyve', 3.5),
+    ('Beyaz peynir', 5),
+    ('Krem peynir', 3),
+    ('Siyah zeytin', 2.5),
+    ('Susam', 3),
+    ('Maya', 1.2),
+    ('Pekmez', 4)
+  ) as x(name, qty) join ingredients i on i.business_id = v_biz and i.name = x.name;
+  perform count_product(v_place, p.id, x.qty) from (values
+    ('Peynirli poğaça', 0),
+    ('Zeytinli poğaça', 0),
+    ('Açma', 0),
+    ('Simit', 0),
+    ('Su böreği', 0),
+    ('Tuzlu kurabiye (250 g)', 10),
+    ('Un kurabiyesi (250 g)', 9),
+    ('Ekler', 0),
+    ('Profiterol', 0),
+    ('Supangle', 7),
+    ('Trileçe dilim', 8),
+    ('Tiramisu dilim', 6),
+    ('Cheesecake dilim', 0),
+    ('Yaş pasta dilim', 0),
+    ('Çikolatalı pasta', 1),
+    ('Meyveli pasta', 1),
+    ('Doğum günü pastası (8 kişilik)', 0)
+  ) as x(name, qty) join products p on p.business_id = v_biz and p.name = x.name;
+  update movements set created_at = v_day0 + interval '6 hours' where business_id = v_biz and kind = 'count';
+  v_mov := receive_ingredient(v_place, (select id from ingredients where business_id = v_biz and name = 'Süt'), 20, 'Sütçü', v_today - 0, v_today - 0 + 3);
   update movements set created_at = v_day0 - interval '0 days' + interval '6 hours 40 minutes' where id = v_mov;
-  v_mov := receive_ingredient((select id from ingredients where business_id = v_biz and name = 'Krema'), 6, 'Toptancı', v_today - 1, v_today - 1 + 4);
+  v_mov := receive_ingredient(v_place, (select id from ingredients where business_id = v_biz and name = 'Krema'), 6, 'Toptancı', v_today - 1, v_today - 1 + 4);
   update movements set created_at = v_day0 - interval '1 days' + interval '6 hours 40 minutes' where id = v_mov;
-  v_mov := receive_ingredient((select id from ingredients where business_id = v_biz and name = 'Taze meyve'), 3, 'Manav', v_today - 0, v_today - 0 + 2);
+  v_mov := receive_ingredient(v_place, (select id from ingredients where business_id = v_biz and name = 'Taze meyve'), 3, 'Manav', v_today - 0, v_today - 0 + 2);
   update movements set created_at = v_day0 - interval '0 days' + interval '6 hours 40 minutes' where id = v_mov;
-  v_mov := receive_ingredient((select id from ingredients where business_id = v_biz and name = 'Un'), 25, 'Toptancı', v_today - 2, null);
+  v_mov := receive_ingredient(v_place, (select id from ingredients where business_id = v_biz and name = 'Un'), 25, 'Toptancı', v_today - 2, null);
   update movements set created_at = v_day0 - interval '2 days' + interval '6 hours 40 minutes' where id = v_mov;
-  v_mov := receive_ingredient((select id from ingredients where business_id = v_biz and name = 'Yumurta'), 120, 'Çiftlik', v_today - 1, v_today - 1 + 14);
+  v_mov := receive_ingredient(v_place, (select id from ingredients where business_id = v_biz and name = 'Yumurta'), 120, 'Çiftlik', v_today - 1, v_today - 1 + 14);
   update movements set created_at = v_day0 - interval '1 days' + interval '6 hours 40 minutes' where id = v_mov;
-  v_mov := record_production(jsonb_build_array(
+  v_mov := record_production(v_place, jsonb_build_array(
     jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 60, 'expires_on', v_today + 2),
     jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 40, 'expires_on', v_today + 2),
     jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 40, 'expires_on', v_today + 2),
@@ -180,10 +226,13 @@ begin
     jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Meyveli pasta'), 'qty', 2, 'expires_on', v_today + 2),
     jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Doğum günü pastası (8 kişilik)'), 'qty', 1, 'expires_on', v_today + 3)), v_today);
   update movements set created_at = v_day0 + interval '6 hours 30 minutes' where id = v_mov;
+  -- the morning's production goes from the pool onto the shelf
+  v_mov := take_from_pool(v_place, (select jsonb_agg(jsonb_build_object('id', product_id, 'qty', qty)) from pool_products where business_id = v_biz and qty > 0));
+  update movements set created_at = v_day0 + interval '6 hours 45 minutes' where id = v_mov;
   v_at := v_day0 + interval '7 hours 14 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 4)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 4)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -191,7 +240,7 @@ begin
   v_at := v_day0 + interval '7 hours 15 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -199,7 +248,7 @@ begin
   v_at := v_day0 + interval '7 hours 43 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -207,7 +256,7 @@ begin
   v_at := v_day0 + interval '8 hours 6 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -215,7 +264,7 @@ begin
   v_at := v_day0 + interval '8 hours 17 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Cheesecake dilim'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Cheesecake dilim'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -223,7 +272,7 @@ begin
   v_at := v_day0 + interval '8 hours 22 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Yaş pasta dilim'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Yaş pasta dilim'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -231,7 +280,7 @@ begin
   v_at := v_day0 + interval '8 hours 24 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Profiterol'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Profiterol'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -239,7 +288,7 @@ begin
   v_at := v_day0 + interval '8 hours 37 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Trileçe dilim'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Trileçe dilim'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -247,7 +296,7 @@ begin
   v_at := v_day0 + interval '8 hours 53 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Tiramisu dilim'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Tiramisu dilim'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -255,7 +304,7 @@ begin
   v_at := v_day0 + interval '9 hours 5 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Ekler'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Ekler'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -263,7 +312,7 @@ begin
   v_at := v_day0 + interval '9 hours 10 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Trileçe dilim'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Trileçe dilim'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -271,7 +320,7 @@ begin
   v_at := v_day0 + interval '9 hours 13 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Ekler'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Ekler'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -279,7 +328,7 @@ begin
   v_at := v_day0 + interval '9 hours 17 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -287,7 +336,7 @@ begin
   v_at := v_day0 + interval '9 hours 43 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Yaş pasta dilim'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Tiramisu dilim'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Yaş pasta dilim'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Tiramisu dilim'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -295,7 +344,7 @@ begin
   v_at := v_day0 + interval '10 hours 8 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Yaş pasta dilim'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Yaş pasta dilim'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -303,7 +352,7 @@ begin
   v_at := v_day0 + interval '10 hours 13 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Tuzlu kurabiye (250 g)'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Tuzlu kurabiye (250 g)'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -311,7 +360,7 @@ begin
   v_at := v_day0 + interval '10 hours 25 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -319,7 +368,7 @@ begin
   v_at := v_day0 + interval '11 hours 5 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Cheesecake dilim'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Ekler'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Cheesecake dilim'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Ekler'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -327,7 +376,7 @@ begin
   v_at := v_day0 + interval '11 hours 40 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -335,7 +384,7 @@ begin
   v_at := v_day0 + interval '11 hours 47 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Tiramisu dilim'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Tiramisu dilim'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -343,7 +392,7 @@ begin
   v_at := v_day0 + interval '12 hours 24 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Cheesecake dilim'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Cheesecake dilim'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -351,7 +400,7 @@ begin
   v_at := v_day0 + interval '12 hours 29 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Cheesecake dilim'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Cheesecake dilim'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -359,7 +408,7 @@ begin
   v_at := v_day0 + interval '12 hours 43 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Profiterol'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Tiramisu dilim'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Profiterol'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Tiramisu dilim'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -367,7 +416,7 @@ begin
   v_at := v_day0 + interval '12 hours 49 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Trileçe dilim'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Trileçe dilim'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -375,7 +424,7 @@ begin
   v_at := v_day0 + interval '13 hours 1 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Su böreği'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Su böreği'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -383,7 +432,7 @@ begin
   v_at := v_day0 + interval '13 hours 9 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Su böreği'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Su böreği'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -391,7 +440,7 @@ begin
   v_at := v_day0 + interval '13 hours 15 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Ekler'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Ekler'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -399,7 +448,7 @@ begin
   v_at := v_day0 + interval '13 hours 32 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -407,7 +456,7 @@ begin
   v_at := v_day0 + interval '14 hours 5 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -415,7 +464,7 @@ begin
   v_at := v_day0 + interval '14 hours 13 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -423,7 +472,7 @@ begin
   v_at := v_day0 + interval '14 hours 35 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -431,7 +480,7 @@ begin
   v_at := v_day0 + interval '15 hours 7 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Yaş pasta dilim'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Cheesecake dilim'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Yaş pasta dilim'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Cheesecake dilim'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -439,7 +488,7 @@ begin
   v_at := v_day0 + interval '15 hours 20 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Çikolatalı pasta'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Çikolatalı pasta'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -447,7 +496,7 @@ begin
   v_at := v_day0 + interval '15 hours 21 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -455,7 +504,7 @@ begin
   v_at := v_day0 + interval '15 hours 37 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Un kurabiyesi (250 g)'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Un kurabiyesi (250 g)'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -463,7 +512,7 @@ begin
   v_at := v_day0 + interval '15 hours 45 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -471,7 +520,7 @@ begin
   v_at := v_day0 + interval '16 hours 6 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Yaş pasta dilim'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Yaş pasta dilim'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -479,7 +528,7 @@ begin
   v_at := v_day0 + interval '16 hours 13 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -487,7 +536,7 @@ begin
   v_at := v_day0 + interval '16 hours 25 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Profiterol'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Profiterol'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -495,7 +544,7 @@ begin
   v_at := v_day0 + interval '16 hours 27 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Cheesecake dilim'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Cheesecake dilim'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -503,7 +552,7 @@ begin
   v_at := v_day0 + interval '16 hours 32 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Ekler'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Ekler'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -511,7 +560,7 @@ begin
   v_at := v_day0 + interval '16 hours 57 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -519,7 +568,7 @@ begin
   v_at := v_day0 + interval '17 hours 10 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Trileçe dilim'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Trileçe dilim'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -527,7 +576,7 @@ begin
   v_at := v_day0 + interval '17 hours 29 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -535,7 +584,7 @@ begin
   v_at := v_day0 + interval '17 hours 34 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 1)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Zeytinli poğaça'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 1)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -543,7 +592,7 @@ begin
   v_at := v_day0 + interval '17 hours 51 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Peynirli poğaça'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -551,7 +600,7 @@ begin
   v_at := v_day0 + interval '17 hours 57 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Supangle'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Supangle'), 'qty', 2), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -559,7 +608,7 @@ begin
   v_at := v_day0 + interval '18 hours 0 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -567,7 +616,7 @@ begin
   v_at := v_day0 + interval '18 hours 37 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Supangle'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 2)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Supangle'), 'qty', 1), jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Açma'), 'qty', 2)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -575,7 +624,7 @@ begin
   v_at := v_day0 + interval '18 hours 44 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 4)), false);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 4)), false);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -583,7 +632,7 @@ begin
   v_at := v_day0 + interval '12 hours 5 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 3)), true);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Simit'), 'qty', 3)), true);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;
@@ -591,7 +640,7 @@ begin
   v_at := v_day0 + interval '17 hours 40 minutes';
   if v_at <= now() then
     begin  -- a sale that would exceed stock is simply skipped
-      v_mov := record_sale(jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Ekler'), 'qty', 2)), true);
+      v_mov := record_sale(v_place, jsonb_build_array(jsonb_build_object('id', (select id from products where business_id = v_biz and name = 'Ekler'), 'qty', 2)), true);
       update movements set created_at = v_at where id = v_mov;
     exception when others then null;
     end;

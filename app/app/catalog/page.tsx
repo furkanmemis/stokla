@@ -61,7 +61,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
                         <b>{x.name}{x.active ? "" : " (satışta değil)"}</b>
                         <small className="lead" style={{ display: "block", fontSize: 13 }}>
                           {tl(Number(x.price))} / {x.unit}{x.weight_g ? `, ${x.weight_g} g` : ""}
-                          {x.made_to_order ? ", siparişle" : `, vitrinde ${num(Number(x.stock))}`}{lines.length ? "" : ", tarif yok"}
+                          {x.made_to_order ? ", siparişle" : ""}{lines.length ? "" : ", tarif yok"}
                         </small>
                       </span>
                       <span className="btn small quiet" aria-hidden="true">Düzenle</span>
@@ -117,10 +117,6 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
             <summary><span className="btn small">Yeni ürün ekle</span></summary>
             <form action={saveProduct}>
               <ProductFields />
-              <div className="field">
-                <label htmlFor="np-stock">Şu an vitrinde kaç tane var?</label>
-                <input className="input" id="np-stock" name="stock" type="number" inputMode="decimal" step="any" min={0} defaultValue={0} />
-              </div>
               <button className="btn" type="submit">Ürünü ekle</button>
             </form>
           </details>
@@ -128,7 +124,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
 
         <section className="panel" id="ingredients" aria-labelledby="h-ingredients">
           <h2 id="h-ingredients">Malzemeler</h2>
-          <p className="lead" style={{ marginBottom: 6 }}>Tariflerde kullanılanlar. Elde &quot;en az&quot; miktarın altına düşünce uyarı çıkar.</p>
+          <p className="lead" style={{ marginBottom: 6 }}>Tariflerde kullanılanlar. Bir yerde &quot;en az&quot; miktarın altına düşünce uyarı çıkar. Her yerin stoğu Stok ekranında.</p>
           {!ingredients.length && <p className="empty">Henüz malzeme yok.</p>}
           <ul className="list">
             {ingredients.map((x) => (
@@ -136,7 +132,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
                 <details className="edit">
                   <summary style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <span style={{ flex: 1, minWidth: 0 }}><b>{x.name}</b><small className="lead" style={{ display: "block", fontSize: 13 }}>En az {num(Number(x.min_stock))} {x.unit}</small></span>
-                    <b>{num(Number(x.stock))} {x.unit}</b>
+                    <span className="lead">{x.unit}</span>
                   </summary>
                   <form action={saveIngredient}>
                     <input type="hidden" name="id" value={x.id} />
@@ -151,10 +147,6 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
             <summary><span className="btn small">Yeni malzeme ekle</span></summary>
             <form action={saveIngredient}>
               <IngredientFields />
-              <div className="field">
-                <label htmlFor="ng-stock">Şu an elinde ne kadar var?</label>
-                <input className="input" id="ng-stock" name="stock" type="number" inputMode="decimal" step="any" min={0} defaultValue={0} />
-              </div>
               <button className="btn" type="submit">Malzemeyi ekle</button>
             </form>
           </details>

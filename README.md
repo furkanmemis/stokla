@@ -9,11 +9,13 @@ Küçük işletmeler için **telefondan kullanılan, basit, rol odaklı stok tak
 
 | Rol | Ekranlar |
 |---|---|
-| **Admin** | Genel bakış (saat saat satış, fire, azalan stok, son kullanma yaklaşanlar), Satış, Üretim, Stok (mal girişi ve sayım), Ürünler ve tarifler, Ekip, Hareketler |
-| **Çalışan** | Satış ve fire, Üretim (tarih, gramaj, son kullanma), Stok (mal girişi: alış tarihi ve son kullanma) |
+| **Admin** | Genel bakış (tüm yerler: saat saat satış, yer yer ciro, azalan stok, son kullanma yaklaşanlar), Satış, Üretim, Ürün havuzu, Stok (mal girişi ve sayım), Ürünler ve tarifler, Yerler, Ekip, Hareketler |
+| **Çalışan** | Sadece çalıştığı yerin ekranları: satış yeriyse Satış ve fire; üretim yeriyse Üretim (tarih, gramaj, son kullanma); ikisinde de Ürün havuzu ve Stok (mal girişi) |
 
-- Admin dükkânı açar, çalışanlara **6 haneli davet kodu** verir.
-- Stok yalnızca hareketlerle değişir (satış, fire, üretim, mal girişi, sayım). Her hareket tek işlemde kaydedilir; stok ve geçmiş hiçbir zaman çelişmez.
+- **Yerler (şube / bayi):** bir yer üretim yapar, satış yapar ya da ikisini birden. Her yerin malzeme stoğu ayrıdır.
+- **Ürün havuzu:** hangi yerde üretilirse üretilsin, ürünler ortak havuza girer. Satış yapan yerler vitrinlerine havuzdan alır; satış vitrinden düşer. Kahve, çay gibi siparişle hazırlananlar satış yerinin kendi malzemesinden düşer.
+- Admin çalışanı **ad, e-posta ve yer** girerek ekler; çalışan o e-postayla kayıt olunca kod girmeden o yere bağlanır. İsterse **6 haneli davet kodu** da verebilir.
+- Stok yalnızca hareketlerle değişir (satış, fire, üretim, havuzdan alma, mal girişi, sayım). Her hareket tek işlemde kaydedilir; stok ve geçmiş hiçbir zaman çelişmez.
 - Mal girişinde alış tarihi, üretimde üretim tarihi girilir (geçmiş bir gün olabilir); ikisinde de son kullanma tarihi isteğe bağlıdır. Üretimde her partinin gramajı kaydedilir.
 - Her dükkânın verisi veritabanı düzeyinde (RLS) diğerlerinden ayrıdır.
 - Panel telefona, tablete ve bilgisayara uyar.
@@ -32,7 +34,11 @@ Küçük işletmeler için **telefondan kullanılan, basit, rol odaklı stok tak
 4. `.env.example` dosyasını `.env.local` olarak kopyala; Supabase **Project URL** ve **publishable (anon) key** değerlerini yaz. Secret / service_role anahtarı hiçbir yere yazılmaz.
 5. `npm install` ve `npm run dev`.
 
-Demo için: `supabase/seed/demo_bakery.sql` dosyasındaki işletme adını değiştirip SQL Editor'de çalıştır; boş bir işletmeye ürünleri, tarifleri ve bir günlük örnek hareketleri yükler.
+Demo için:
+- `supabase/seed/demo_bakery.sql`: boş bir işletmeye ürünleri, tarifleri, "Merkez" adında bir yeri ve bir günlük örnek hareketleri yükler.
+- `supabase/seed/demo_places.sql`: ürünleri olan ama yeri olmayan bir işletmeye iki üretim yeri, iki bayi ve bir günlük üretim, havuz ve satış hareketlerini yükler.
+
+İkisinde de dosyanın başındaki işletme adını değiştirip SQL Editor'de çalıştır.
 
 Vercel'de aynı iki ortam değişkenini (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) tanımla.
 
@@ -54,11 +60,11 @@ psql -v ON_ERROR_STOP=1 -d stokla_test \
 app/                 pages (routes) and server actions
   _actions/auth.ts       login, sign-out, create / join a business
   app/_actions/          stock movements, catalog, team (one file per responsibility)
-  app/<screen>/          overview, sales, production, stock, catalog, team, movements
+  app/<screen>/          overview, sales, production, pool, stock, catalog, places, team, movements
 components/          client UI (sale screen with receipt, production form, stock screen, navigation)
-lib/domain/          pure business rules + tests (stock, dates; no I/O)
+lib/domain/          pure business rules + tests (stock, places, pool, dates, auth, paging; no I/O)
 lib/                 session, Supabase client, form helpers, types, sample bakery data
-supabase/            schema.sql (tables, RLS, stock functions), SQL tests, seed/demo_bakery.sql (demo data)
+supabase/            schema.sql (tables, RLS, stock functions), SQL tests, seed/ (demo data)
 public/logo/         logo set
 demo/                single-file offline demo (no backend)
 ```

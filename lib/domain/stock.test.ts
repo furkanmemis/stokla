@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_QTY, OTHER_CATEGORY, categoriesOf, gaugePercent, sanitizeLines, sanitizeProductionLines, stockLevel, summarizeDay } from "./stock";
-import type { Ingredient, Product } from "../types";
+import { MAX_QTY, OTHER_CATEGORY, attachStock, categoriesOf, gaugePercent, lowStock, salesByPlace, sanitizeLines, sanitizeProductionLines, stockLevel, summarizeDay, type LowRow } from "./stock";
 
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
@@ -59,15 +58,32 @@ describe("stockLevel and gaugePercent", () => {
   });
 });
 
-describe("summarizeDay", () => {
-  const product = (id: string, stock: number, min: number): Product => ({
-    id, business_id: "b", name: id, emoji: null, unit: "adet", price: 10, stock, min_stock: min,
-    barcode: null, active: true, sort: 0, weight_g: null, category: null, made_to_order: false,
+describe("attachStock", () => {
+  it("joins stock rows and treats missing rows as zero", () => {
+    expect(attachStock([{ id: "a" }, { id: "b" }], [{ id: "a", qty: 3 }])).toEqual([{ id: "a", stock: 3 }, { id: "b", stock: 0 }]);
   });
-  const ingredient = (id: string, stock: number, min: number, active = true): Ingredient => ({
-    id, business_id: "b", name: id, unit: "kg", stock, min_stock: min, active,
-  });
+});
 
+describe("lowStock", () => {
+  const row = (placeName: string, id: string, qty: number, min: number): LowRow =>
+    ({ placeId: placeName, placeName, kind: "product", id, name: id, unit: "adet", qty, min });
+  it("keeps items under their minimum at each place, emptiest first", () => {
+    const rows = [row("AVM", "sutlac", 1, 4), row("Merkez", "sutlac", 9, 4), row("Sahil", "sutlac", 0, 4), row("AVM", "x", 0, 0)];
+    expect(lowStock(rows).map((r) => r.placeName)).toEqual(["Sahil", "AVM"]);
+  });
+});
+
+describe("salesByPlace", () => {
+  it("adds up sales per place, largest first", () => {
+    expect(salesByPlace([
+      { kind: "sale", total: 50, location_id: "a" }, { kind: "sale", total: 80, location_id: "b" },
+      { kind: "sale", total: 40, location_id: "a" }, { kind: "waste", total: 99, location_id: "a" },
+      { kind: "sale", total: 10, location_id: null },
+    ])).toEqual([{ placeId: "a", revenue: 90 }, { placeId: "b", revenue: 80 }]);
+  });
+});
+
+describe("summarizeDay", () => {
   it("adds up revenue, waste, units and hourly sales, ranking top sellers", () => {
     const day = summarizeDay({
       movements: [
@@ -82,8 +98,6 @@ describe("summarizeDay", () => {
         { movement_id: "m3", product_id: A, qty: -2 }, // waste: not a sale
         { movement_id: "m4", product_id: A, qty: 40 },
       ],
-      products: [product(A, 10, 1), product(B, 0, 2), { ...product("coffee", 0, 5), made_to_order: true }],
-      ingredients: [ingredient("un", 1, 2), ingredient("eski", 0, 5, false), ingredient("seker", 9, 2)],
     });
     expect(day.revenue).toBe(80);
     expect(day.waste).toBe(20);
@@ -93,14 +107,12 @@ describe("summarizeDay", () => {
     expect(day.hourly[0].hour).toBe(7);
     expect(day.hourly.at(-1)?.hour).toBe(21);
     expect(day.topSellers).toEqual([{ productId: B, qty: 3 }, { productId: A, qty: 2 }]);
-    expect(day.lowProducts.map((p) => p.id)).toEqual([B]);
-    expect(day.lowIngredients.map((g) => g.id)).toEqual(["un"]); // inactive ones are ignored
   });
 
   it("widens the hour range when sales happen outside opening hours", () => {
     const day = summarizeDay({
       movements: [{ id: "m", kind: "sale", total: 5, created_at: "2026-11-08T20:30:00Z" }], // 23:30 TR
-      lines: [], products: [], ingredients: [],
+      lines: [],
     });
     expect(day.hourly.at(-1)).toEqual({ hour: 23, revenue: 5 });
   });

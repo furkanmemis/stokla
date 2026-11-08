@@ -1,5 +1,5 @@
 // Pure stock rules shared by server actions and screens. No I/O here, so they are easy to test.
-import type { Ingredient, Movement, MovementLine, Product } from "../types";
+import type { Movement, MovementLine, Stocked } from "../types";
 import { hourTR, isIsoDay } from "./dates";
 
 export type StockLine = { id: string; qty: number };
@@ -74,6 +74,31 @@ export function gaugePercent(stock: number, min: number): number {
   return Math.max(0, Math.min(100, Math.round((stock / full) * 100)));
 }
 
+/** Joins per-place stock rows onto catalog items; items without a row have zero. */
+export function attachStock<T extends { id: string }>(items: T[], rows: { id: string; qty: number }[]): Stocked<T>[] {
+  const qty = new Map(rows.map((r) => [r.id, Number(r.qty)]));
+  return items.map((x) => ({ ...x, stock: qty.get(x.id) ?? 0 }));
+}
+
+export type LowRow = { placeId: string; placeName: string; kind: "ingredient" | "product"; id: string; name: string; unit: string; qty: number; min: number };
+
+/** Items below their minimum at any place, emptiest first (relative to the minimum). */
+export function lowStock(rows: LowRow[]): LowRow[] {
+  return rows
+    .filter((r) => r.min > 0 && stockLevel(r.qty, r.min) !== "ok")
+    .sort((a, b) => a.qty / a.min - b.qty / b.min || a.placeName.localeCompare(b.placeName, "tr"));
+}
+
+/** Sales revenue per place for the day, largest first. Places without sales are left out. */
+export function salesByPlace(movements: Pick<Movement, "kind" | "total" | "location_id">[]): { placeId: string; revenue: number }[] {
+  const by = new Map<string, number>();
+  for (const m of movements) {
+    if (m.kind !== "sale" || !m.location_id) continue;
+    by.set(m.location_id, (by.get(m.location_id) ?? 0) + Number(m.total));
+  }
+  return [...by].map(([placeId, revenue]) => ({ placeId, revenue })).sort((a, b) => b.revenue - a.revenue);
+}
+
 export type DaySummary = {
   revenue: number;
   waste: number;
@@ -81,25 +106,21 @@ export type DaySummary = {
   unitsMade: number;
   hourly: { hour: number; revenue: number }[];
   topSellers: { productId: string; qty: number }[];
-  lowIngredients: Ingredient[];
-  lowProducts: Product[];
 };
 
 export const OPENING_HOURS = { from: 7, to: 21 } as const;
 
 /**
- * Builds the admin's "today" view from the day's movements, their product lines and the catalog.
+ * Builds the admin's "today" view from the day's movements and their product lines (all places).
  * Sale lines are stored as negative quantities (stock out), so they are flipped here.
  */
 export function summarizeDay(input: {
   movements: Pick<Movement, "id" | "kind" | "total" | "created_at">[];
   lines: Pick<MovementLine, "movement_id" | "product_id" | "qty">[];
-  products: Product[];
-  ingredients: Ingredient[];
   topN?: number;
   hours?: { from: number; to: number };
 }): DaySummary {
-  const { movements, lines, products, ingredients, topN = 5, hours = OPENING_HOURS } = input;
+  const { movements, lines, topN = 5, hours = OPENING_HOURS } = input;
   const kindOf = new Map(movements.map((m) => [m.id, m.kind]));
   const sum = (kind: Movement["kind"]) => movements.filter((m) => m.kind === kind).reduce((a, m) => a + Number(m.total), 0);
 
@@ -132,9 +153,5 @@ export function summarizeDay(input: {
       .map(([productId, qty]) => ({ productId, qty }))
       .sort((a, b) => b.qty - a.qty)
       .slice(0, topN),
-    lowIngredients: ingredients
-      .filter((g) => g.active && stockLevel(Number(g.stock), Number(g.min_stock)) !== "ok")
-      .sort((a, b) => Number(a.stock) / (Number(a.min_stock) || 1) - Number(b.stock) / (Number(b.min_stock) || 1)),
-    lowProducts: products.filter((p) => p.active && !p.made_to_order && stockLevel(Number(p.stock), Number(p.min_stock)) !== "ok"),
   };
 }

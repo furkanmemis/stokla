@@ -42,7 +42,7 @@ export async function saveProduct(fd: FormData) {
   };
   const { error } = id
     ? await supabase.from("products").update(row).eq("id", id)
-    : await supabase.from("products").insert({ ...row, business_id: business.id, stock: nonNegative(decimal(fd, "stock")) });
+    : await supabase.from("products").insert({ ...row, business_id: business.id });
   if (error) redirectWith(PAGE, "error", error.code === UNIQUE_VIOLATION ? "Bu adda ya da barkodda bir ürün zaten var." : "Ürün kaydedilemedi.");
   refresh();
   redirectWith(PAGE, "ok", id ? "Ürün güncellendi." : "Ürün eklendi.");
@@ -67,7 +67,7 @@ export async function saveIngredient(fd: FormData) {
   const row = { name, unit, min_stock: nonNegative(decimal(fd, "min_stock")) };
   const { error } = id
     ? await supabase.from("ingredients").update(row).eq("id", id)
-    : await supabase.from("ingredients").insert({ ...row, business_id: business.id, stock: nonNegative(decimal(fd, "stock")) });
+    : await supabase.from("ingredients").insert({ ...row, business_id: business.id });
   if (error) redirectWith(back, "error", error.code === UNIQUE_VIOLATION ? "Bu adda bir malzeme zaten var." : "Malzeme kaydedilemedi.");
   refresh();
   redirectWith(back, "ok", id ? "Malzeme güncellendi." : "Malzeme eklendi.");
@@ -99,13 +99,13 @@ export async function loadSampleData() {
 
   const { data: ings, error: e1 } = await supabase
     .from("ingredients")
-    .insert(SAMPLE_BAKERY.ingredients.map((g) => ({ ...g, business_id: business.id })))
+    .insert(SAMPLE_BAKERY.ingredients.map(({ stock: _stock, ...g }) => ({ ...g, business_id: business.id })))
     .select("id, name");
   if (e1 || !ings) redirectWith(PAGE, "error", "Örnek malzemeler yüklenemedi.");
 
   const { data: prods, error: e2 } = await supabase
     .from("products")
-    .insert(SAMPLE_BAKERY.products.map(({ recipe: _recipe, ...p }, i) => ({ ...p, sort: i, business_id: business.id })))
+    .insert(SAMPLE_BAKERY.products.map(({ recipe: _recipe, stock: _stock, ...p }, i) => ({ ...p, sort: i, business_id: business.id })))
     .select("id, name");
   if (e2 || !prods) redirectWith(PAGE, "error", "Örnek ürünler yüklenemedi.");
 
@@ -121,6 +121,24 @@ export async function loadSampleData() {
   const { error: e3 } = await supabase.from("recipe_items").insert(recipe);
   if (e3) redirectWith(PAGE, "error", "Örnek tarifler yüklenemedi.");
 
+  // A business needs at least one place to work at; start with one that makes and sells, holding the
+  // sample amounts as its opening count (counts go through the database functions like any other change).
+  let note = "";
+  const { count: placeCount } = await supabase.from("locations").select("id", { count: "exact", head: true });
+  if (!placeCount) {
+    const { data: placeId, error: e4 } = await supabase.rpc("save_place", {
+      p_id: null, p_name: "Merkez", p_can_produce: true, p_can_sell: true, p_address: null,
+    });
+    if (!e4 && typeof placeId === "string") {
+      await Promise.all([
+        ...SAMPLE_BAKERY.ingredients.map((g) =>
+          supabase.rpc("count_ingredient", { p_place: placeId, p_ingredient: ingredientId.get(g.name), p_counted: g.stock })),
+        ...SAMPLE_BAKERY.products.map((p) =>
+          supabase.rpc("count_product", { p_place: placeId, p_product: productId.get(p.name), p_counted: p.stock })),
+      ]);
+      note = " \"Merkez\" adında, hem üreten hem satan bir yer de açıldı.";
+    }
+  }
   refresh();
-  redirectWith(PAGE, "ok", "Örnek pastane verileri yüklendi. Fiyat ve tarifleri kendine göre düzenleyebilirsin.");
+  redirectWith(PAGE, "ok", `Örnek pastane verileri yüklendi.${note} Fiyat ve tarifleri kendine göre düzenleyebilirsin.`);
 }

@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { recordSale } from "@/app/app/_actions/stock";
 import { OTHER_CATEGORY, categoriesOf, stockLevel } from "@/lib/domain/stock";
-import { tl, type Product } from "@/lib/types";
+import { tl, type Product, type Stocked } from "@/lib/types";
 import { Icon } from "./Icon";
 import { useToast } from "./useToast";
 
@@ -13,7 +13,7 @@ const EDGE_TOP = "M0 12 L0 6 " + Array.from({ length: 30 }, (_, i) => `L${i * 10
 const EDGE_BOTTOM = "M0 0 L0 6 " + Array.from({ length: 30 }, (_, i) => `L${i * 10 + 10} ${i % 2 ? 6 : 12}`).join(" ") + " L300 0 Z";
 
 /** Counter screen: tap a product once per unit; the receipt collects them until saved. */
-export function SaleScreen({ products }: { products: Product[] }) {
+export function SaleScreen({ products, placeId, picker }: { products: Stocked<Product>[]; placeId: string; picker?: React.ReactNode }) {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [waste, setWaste] = useState(false);
   const [query, setQuery] = useState("");
@@ -33,13 +33,13 @@ export function SaleScreen({ products }: { products: Product[] }) {
   const count = lines.reduce((a, l) => a + l.qty, 0);
   const total = lines.reduce((a, l) => a + l.qty * Number(l.p.price), 0);
 
-  function add(p: Product) {
+  function add(p: Stocked<Product>) {
     const next = (cart[p.id] ?? 0) + 1;
     if (!p.made_to_order && next > Number(p.stock)) { toast.show(`Vitrinde ${p.name} kalmadı.`, true); return; }
     setCart({ ...cart, [p.id]: next });
     navigator.vibrate?.(12);
   }
-  function remove(p: Product) {
+  function remove(p: Stocked<Product>) {
     const next = { ...cart };
     if (--next[p.id] <= 0) delete next[p.id];
     setCart(next);
@@ -47,7 +47,7 @@ export function SaleScreen({ products }: { products: Product[] }) {
   function switchMode(toWaste: boolean) { setWaste(toWaste); setCart({}); }
   function save() {
     start(async () => {
-      const r = await recordSale(lines.map((l) => ({ id: l.p.id, qty: l.qty })), waste);
+      const r = await recordSale(placeId, lines.map((l) => ({ id: l.p.id, qty: l.qty })), waste);
       if (!r.ok) { toast.show(r.error, true); return; }
       toast.show(`${waste ? "Fire kaydedildi" : "Satış kaydedildi"}: ${tl(total)}`);
       setCart({}); setOpen(false);
@@ -64,7 +64,7 @@ export function SaleScreen({ products }: { products: Product[] }) {
     <>
       {toast.node}
       <div className="page-head">
-        <h1>Satış</h1>
+        <div className="head-title"><h1>Satış</h1>{picker}</div>
         <div className="seg" role="group" aria-label="Kayıt türü">
           <button type="button" aria-pressed={!waste} onClick={() => switchMode(false)}>Satış</button>
           <button type="button" className="waste" aria-pressed={waste} onClick={() => switchMode(true)}>Fire</button>

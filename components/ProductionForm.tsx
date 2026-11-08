@@ -2,13 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { recordProduction } from "@/app/app/_actions/stock";
-import { num, type Product } from "@/lib/types";
+import { num, type Product, type Stocked } from "@/lib/types";
 import { useToast } from "./useToast";
 
 type Draft = { qty: number; weight: string; expires: string };
 
 /** Kitchen screen: what was made on a day, with each batch's weight and optional expiry. */
-export function ProductionForm({ products, withRecipe, today }: { products: Product[]; withRecipe: string[]; today: string }) {
+export function ProductionForm({ products, withRecipe, today, placeId }: {
+  products: Stocked<Product>[]; withRecipe: string[]; today: string; placeId: string;
+}) {
   const hasRecipe = new Set(withRecipe);
   const blank = (p: Product): Draft => ({ qty: 0, weight: p.weight_g ? String(p.weight_g) : "", expires: "" });
   const [day, setDay] = useState(today);
@@ -27,7 +29,7 @@ export function ProductionForm({ products, withRecipe, today }: { products: Prod
       return { id: p.id, qty: d.qty, weight_g: d.weight ? Number(d.weight) : null, expires_on: d.expires || null };
     });
     start(async () => {
-      const r = await recordProduction(items, day);
+      const r = await recordProduction(placeId, items, day);
       if (!r.ok) { toast.show(r.error, true); return; }
       toast.show("Üretim kaydedildi, malzemeler stoktan düştü.");
       setDrafts({});
@@ -54,7 +56,7 @@ export function ProductionForm({ products, withRecipe, today }: { products: Prod
             <div className="prod-row" key={p.id}>
               <div style={{ minWidth: 0 }}>
                 <b style={{ display: "block" }}>{p.name}</b>
-                <small className="lead" style={{ fontSize: 13 }}>Vitrinde {num(Number(p.stock))} {p.unit}{hasRecipe.has(p.id) ? "" : " · tarif yok, malzeme düşmez"}</small>
+                <small className="lead" style={{ fontSize: 13 }}>Havuzda {num(Number(p.stock))} {p.unit}{hasRecipe.has(p.id) ? "" : " · tarif yok, malzeme düşmez"}</small>
               </div>
               <div className="stepper">
                 <button type="button" onClick={() => patch(p, { qty: Math.max(0, d.qty - 1) })} aria-label={`${p.name} azalt`}>−</button>

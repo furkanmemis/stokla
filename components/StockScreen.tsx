@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { countIngredient, countProduct, receiveIngredient } from "@/app/app/_actions/stock";
 import { gaugePercent, stockLevel } from "@/lib/domain/stock";
 import { shortDay } from "@/lib/domain/dates";
-import { num, type Ingredient, type Product, type Role } from "@/lib/types";
+import { num, type Ingredient, type Product, type Role, type Stocked } from "@/lib/types";
 import { Icon } from "./Icon";
 import { useToast } from "./useToast";
 
@@ -15,7 +15,7 @@ type Mode = "receive" | "count";
 const addTo = (typed: string, n: number) =>
   String(Math.round(((Number(typed.replace(",", ".")) || 0) + n) * 1000) / 1000).replace(".", ",");
 
-const toItem = (x: Ingredient | Product, kind: Item["kind"]): Item =>
+const toItem = (x: Stocked<Ingredient> | Stocked<Product>, kind: Item["kind"]): Item =>
   ({ id: x.id, name: x.name, unit: x.unit, stock: Number(x.stock), min: Number(x.min_stock), kind });
 
 /**
@@ -23,10 +23,10 @@ const toItem = (x: Ingredient | Product, kind: Item["kind"]): Item =>
  * Employees record goods received; only admins count.
  */
 export function StockScreen(props: {
-  view: "ingredients" | "products"; ingredients: Ingredient[]; products: Product[];
-  lastReceipt: Record<string, string>; role: Role; today: string;
+  view: "ingredients" | "products"; ingredients: Stocked<Ingredient>[]; products: Stocked<Product>[];
+  lastReceipt: Record<string, string>; role: Role; today: string; placeId: string; productsLabel: string;
 }) {
-  const { view, role, today, lastReceipt } = props;
+  const { view, role, today, lastReceipt, placeId, productsLabel } = props;
   const isAdmin = role === "admin";
   const items = (view === "ingredients" ? props.ingredients.map((g) => toItem(g, "ingredient")) : props.products.map((p) => toItem(p, "product")))
     .sort((a, b) => a.stock / (a.min || 1) - b.stock / (b.min || 1));
@@ -54,10 +54,10 @@ export function StockScreen(props: {
     if (!selected || !valid) return;
     start(async () => {
       const r = selected.kind === "product"
-        ? await countProduct(selected.id, value)
+        ? await countProduct(placeId, selected.id, value)
         : mode === "receive"
-          ? await receiveIngredient(selected.id, value, note, { day, expiresOn: expires || null })
-          : await countIngredient(selected.id, value);
+          ? await receiveIngredient(placeId, selected.id, value, note, { day, expiresOn: expires || null })
+          : await countIngredient(placeId, selected.id, value);
       if (!r.ok) { toast.show(r.error, true); return; }
       toast.show(mode === "receive" ? `${selected.name}: +${num(value)} ${selected.unit} eklendi` : `${selected.name} sayımı kaydedildi`);
       setSelected(null);
@@ -152,11 +152,11 @@ export function StockScreen(props: {
           </>
         ) : (
           <aside className="side hint-side" style={{ boxShadow: "none" }} aria-label="Bilgi">
-            <h2 style={{ fontSize: 18 }}>{view === "ingredients" ? "Mal geldi mi?" : "Vitrin sayımı"}</h2>
+            <h2 style={{ fontSize: 18 }}>{view === "ingredients" ? "Mal geldi mi?" : `${productsLabel} sayımı`}</h2>
             <p className="sub" style={{ marginBottom: 0 }}>
               {view === "ingredients"
                 ? "Listeden malzemeye dokun, gelen miktarı, alış tarihini ve varsa son kullanma tarihini gir."
-                : isAdmin ? "Listeden ürüne dokun ve vitrinde saydığın adedi gir." : "Vitrin sayımını admin yapar."}
+                : isAdmin ? "Listeden ürüne dokun ve saydığın adedi gir." : "Ürün sayımını admin yapar. Ürünler üretimle ve teslim alınan gönderimlerle gelir."}
             </p>
           </aside>
         )}
