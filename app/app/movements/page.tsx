@@ -68,7 +68,7 @@ export default async function MovementsPage({ searchParams }: { searchParams: Se
             {rows.map((m) => (
               <li key={m.id}>
                 <div className="moves-head">
-                  <span className={`tag ${m.kind}`}>{KIND_LABEL[m.kind]}</span>
+                  <span className={`tag kind-${m.kind}`}>{KIND_LABEL[m.kind]}</span>
                   <span className="lead">{time(m.created_at)}{m.created_by_name ? `, ${m.created_by_name}` : ""}</span>
                   {Number(m.total) > 0 && <b className="moves-total">{tl(Number(m.total))}</b>}
                 </div>

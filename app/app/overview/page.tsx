@@ -118,7 +118,7 @@ export default async function OverviewPage() {
                 return (
                   <li key={i}>
                     <span className="grow"><b>{name ?? "—"}</b><small>{num(Number(b.qty))} {unit} · {b.product_id ? "üretim" : "alış"} {shortDay(b.occurred_on)}</small></span>
-                    <span className={`tag ${past || b.expires_on === today ? "waste" : "production"}`}>{expiryLabel(b.expires_on, today)}</span>
+                    <span className={`tag ${past || b.expires_on === today ? "kind-waste" : "kind-production"}`}>{expiryLabel(b.expires_on, today)}</span>
                   </li>
                 );
               })}
@@ -149,7 +149,7 @@ export default async function OverviewPage() {
                   {((recent ?? []) as (Movement & { movement_lines: Pick<MovementLine, "product_id" | "ingredient_id" | "qty">[] })[]).map((m) => (
                     <tr key={m.id}>
                       <td className="lead">{time(m.created_at)}</td>
-                      <td><span className={`tag ${m.kind}`}>{KIND_LABEL[m.kind]}</span></td>
+                      <td><span className={`tag kind-${m.kind}`}>{KIND_LABEL[m.kind]}</span></td>
                       <td>{describe(m)}</td>
                       <td className="hide-sm lead">{m.created_by_name ?? "—"}</td>
                       <td className="num"><b>{Number(m.total) > 0 ? tl(Number(m.total)) : ""}</b></td>

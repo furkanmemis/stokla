@@ -114,11 +114,11 @@ a { color: inherit; }
 .alert.ok { background: var(--leaf-soft); color: var(--leaf-ink); }
 .alert.warn { background: var(--amber-soft); color: #6B3B00; }
 .tag { display: inline-block; font-size: 13px; font-weight: 800; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-.tag.sale { background: var(--leaf-soft); color: var(--leaf-ink); }
-.tag.waste { background: var(--berry-soft); color: var(--berry-ink); }
-.tag.production { background: #FCE3CC; color: #7A3D0C; }
-.tag.receipt { background: var(--sky-soft); color: var(--sky-ink); }
-.tag.count { background: var(--sunken); color: #3F4641; }
+.tag.kind-sale { background: var(--leaf-soft); color: var(--leaf-ink); }
+.tag.kind-waste { background: var(--berry-soft); color: var(--berry-ink); }
+.tag.kind-production { background: #FCE3CC; color: #7A3D0C; }
+.tag.kind-receipt { background: var(--sky-soft); color: var(--sky-ink); }
+.tag.kind-count { background: var(--sunken); color: #3F4641; }
 .toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 60; pointer-events: none; max-width: min(92vw, 520px);
   background: var(--ink); color: #fff; padding: 12px 18px; border-radius: var(--r-sm); font-weight: 700; text-align: center; box-shadow: var(--lift); }
 .toast.bad { background: var(--berry); }
