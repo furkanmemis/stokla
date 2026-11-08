@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
 import { WAITING_PATH, homeFor, resolvePlace, type Need } from "./domain/places";
+import { emailProven } from "./domain/auth";
 import type { Business, Member, Place, Role } from "./types";
 
 /** Cookie holding the place an admin last worked at (employees always work at their own). */
@@ -17,7 +18,9 @@ export const getSession = cache(async () => {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const claims = data?.claims;
-  if (!claims?.sub) return { supabase, userId: null, email: null, member: null as Member | null, business: null as Business | null };
+  if (!claims?.sub) {
+    return { supabase, userId: null, email: null, emailProven: false, member: null as Member | null, business: null as Business | null };
+  }
   const loadMember = () => supabase.from("members").select("*").eq("user_id", claims.sub).maybeSingle();
   let { data: member } = await loadMember();
   if (!member) {
@@ -31,6 +34,8 @@ export const getSession = cache(async () => {
     supabase,
     userId: claims.sub as string,
     email: typeof claims.email === "string" ? claims.email : null,
+    /** This session came from a link or code sent to the user's e-mail (needed to open a business). */
+    emailProven: emailProven((claims as { amr?: unknown }).amr),
     member: (member as Member | null) ?? null,
     business: (business as Business | null) ?? null,
   };

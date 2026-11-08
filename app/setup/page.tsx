@@ -5,7 +5,7 @@ import { Wordmark } from "@/components/Logo";
 import { getSession } from "@/lib/session";
 import { SECTOR_LABEL } from "@/lib/types";
 import { signOut } from "../_actions/auth";
-import { createBusiness } from "../_actions/onboarding";
+import { createBusiness, sendEmailProof } from "../_actions/onboarding";
 
 export const metadata: Metadata = { title: "Başlangıç" };
 
@@ -23,6 +23,16 @@ export default async function SetupPage({ searchParams }: { searchParams: Search
         <p className="lead">Dükkânını oluştur. Bir dükkânda çalışıyorsan hesabını adminin açar.</p>
         <Alert error={param(sp.error)} />
         <div className="row">
+          {!s.emailProven ? (
+          <section className="panel" aria-labelledby="h-verify">
+            <h2 id="h-verify">Önce e-postanı doğrula</h2>
+            <p className="lead">Dükkân açmadan önce <b>{s.email}</b> adresinin senin olduğunu doğrulayalım. Gönderdiğimiz bağlantıya dokununca buraya dönersin ve dükkânını oluşturursun.</p>
+            {param(sp.sent)
+              ? <p className="alert ok" role="status">Bağlantı gönderildi. Gelen kutunu (ve gereksiz klasörünü) kontrol et.</p>
+              : null}
+            <form action={sendEmailProof}><button className="btn block" type="submit">{param(sp.sent) ? "Bağlantıyı yeniden gönder" : "Doğrulama bağlantısı gönder"}</button></form>
+          </section>
+          ) : (
           <form className="panel" action={createBusiness}>
             <h2>Dükkânımı oluştur</h2>
             <p className="lead" style={{ marginBottom: 14 }}>Admin olarak girersin; ürünleri ve ekibi sen eklersin.</p>
@@ -42,6 +52,7 @@ export default async function SetupPage({ searchParams }: { searchParams: Search
             </div>
             <button className="btn block" type="submit">Dükkânı oluştur</button>
           </form>
+          )}
 
           <section className="panel">
             <h2>Bir dükkânda mı çalışıyorsun?</h2>

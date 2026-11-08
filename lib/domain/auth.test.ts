@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authMessage, checkEmail, checkNewPassword } from "./auth";
+import { authMessage, checkEmail, checkNewPassword, emailProven } from "./auth";
 
 describe("checkEmail", () => {
   it("normalizes case and spaces", () => expect(checkEmail("  Ali@Ornek.COM ")).toEqual({ ok: true, value: "ali@ornek.com" }));
@@ -19,4 +19,16 @@ describe("authMessage", () => {
   it("explains wrong credentials", () => expect(authMessage({ code: "invalid_credentials" }, "x")).toBe("E-posta ya da şifre hatalı."));
   it("explains unconfirmed e-mail", () => expect(authMessage({ message: "Email not confirmed" }, "x")).toContain("doğrulamadın"));
   it("falls back for unknown errors", () => expect(authMessage({ message: "boom" }, "Tekrar dene.")).toBe("Tekrar dene."));
+});
+
+describe("emailProven", () => {
+  it("accepts sessions from an e-mail link or code", () => {
+    expect(emailProven([{ method: "otp", timestamp: 1 }])).toBe(true);
+    expect(emailProven([{ method: "password" }, { method: "magiclink" }])).toBe(true);
+  });
+  it("refuses password-only sessions and junk", () => {
+    expect(emailProven([{ method: "password" }])).toBe(false);
+    expect(emailProven(undefined)).toBe(false);
+    expect(emailProven("otp")).toBe(false);
+  });
 });

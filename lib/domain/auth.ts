@@ -20,6 +20,18 @@ export function checkNewPassword(raw: unknown, repeat?: unknown): Check<string> 
   return { ok: true, value: password };
 }
 
+/**
+ * Sign-in methods that prove the person controls their e-mail (a link or code sent there).
+ * Supabase lists how the current session was obtained in the token's "amr" claim.
+ */
+export const EMAIL_PROOF_METHODS = ["otp", "magiclink", "email/signup", "recovery", "email_change", "invite"] as const;
+
+/** Whether this session came from a link or code sent to the person's e-mail. */
+export function emailProven(amr: unknown): boolean {
+  if (!Array.isArray(amr)) return false;
+  return amr.some((a) => (EMAIL_PROOF_METHODS as readonly string[]).includes(String((a as { method?: unknown })?.method)));
+}
+
 /** Turns Supabase Auth errors into plain Turkish; unknown ones get the fallback. */
 export function authMessage(error: { message?: string; code?: string } | null | undefined, fallback: string): string {
   const text = `${error?.code ?? ""} ${error?.message ?? ""}`.toLowerCase();

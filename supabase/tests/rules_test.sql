@@ -35,6 +35,10 @@ grant execute on function pg_temp.pstock(uuid, uuid), pg_temp.istock(uuid, uuid)
 
 -- ---------- admin A sets up a bakery
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+select set_config('request.jwt.claims', '{"amr":[{"method":"password"}]}', true);
+select pg_temp.check(pg_temp.fails($$select public.create_business('Gül Pastanesi', 'bakery', 'Ayşe')$$, 'e-postanı doğrula'),
+  'opening a business needs a session from an e-mail link');
+select set_config('request.jwt.claims', '{"amr":[{"method":"otp"}]}', true);
 select public.create_business('Gül Pastanesi', 'bakery', 'Ayşe') as biz_a \gset
 select pg_temp.check(public.my_role() = 'admin', 'creator becomes admin');
 select pg_temp.check(pg_temp.fails($$select public.create_business('İkinci', 'bakery', 'Ayşe')$$, 'Zaten'), 'one business per user');
@@ -212,6 +216,7 @@ select pg_temp.check((select count(*) from movements m where not exists (select 
 
 -- ---------- isolation: admin B sees nothing of A
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
+select set_config('request.jwt.claims', '{"amr":[{"method":"magiclink"}]}', true);
 select public.create_business('Kitapevi', 'bookstore', 'Can') as biz_b \gset
 select pg_temp.check((select count(*) from products) = 0, 'other business products are invisible');
 select pg_temp.check((select count(*) from locations) = 0, 'other business places are invisible');

@@ -449,6 +449,12 @@ declare v_id uuid;
 begin
   if auth.uid() is null then raise exception 'Oturum bulunamadı.'; end if;
   if exists (select 1 from members where user_id = auth.uid()) then raise exception 'Zaten bir işletmeye bağlısın.'; end if;
+  -- Accounts opened by an admin for staff get no e-mail, so a new business owner proves their address
+  -- here: this session must come from a link or code sent to their e-mail.
+  if not exists (select 1 from jsonb_array_elements(coalesce(auth.jwt() -> 'amr', '[]'::jsonb)) a
+                 where a ->> 'method' in ('otp', 'magiclink', 'email/signup', 'recovery', 'email_change', 'invite')) then
+    raise exception 'Dükkân açmadan önce e-postanı doğrula.';
+  end if;
   insert into businesses (name, sector) values (trim(p_name), coalesce(p_sector, 'bakery')) returning id into v_id;
   insert into members (user_id, business_id, role, name) values (auth.uid(), v_id, 'admin', trim(p_owner_name));
   return v_id;
