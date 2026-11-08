@@ -232,6 +232,20 @@ table.data button.rowbtn:focus-visible { outline: 3px solid var(--brand); outlin
 .savebar { position: sticky; bottom: 0; padding: 12px 0 calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, var(--ground) 35%); display: flex; gap: 10px; }
 .savebar .btn { flex: 1; }
 
+/* ---------- movements ---------- */
+.cats a.chip { flex-shrink: 0; border: 1px solid var(--line); background: var(--surface); padding: 9px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; white-space: nowrap; text-decoration: none; }
+.cats a.chip[aria-current="page"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+.moves { list-style: none; margin: 0; padding: 0; }
+.moves li { padding: 14px 0; border-top: 1px solid var(--sunken); }
+.moves li:first-child { border-top: 0; padding-top: 4px; }
+.moves-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.moves-head .lead { font-size: 14px; }
+.moves-total { margin-left: auto; font-size: 16px; }
+.moves p { margin: 6px 0 2px; font-size: 15px; line-height: 1.45; }
+.moves small { font-size: 13px; }
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--sunken); }
+.pager [aria-disabled="true"] { opacity: .45; pointer-events: none; }
+
 /* ---------- auth pages ---------- */
 .auth { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
 .auth-card { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 28px 24px; }
