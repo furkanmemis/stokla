@@ -32,6 +32,8 @@ Küçük işletmeler için **telefondan kullanılan, basit, rol odaklı stok tak
 4. `.env.example` dosyasını `.env.local` olarak kopyala; Supabase **Project URL** ve **publishable (anon) key** değerlerini yaz. Secret / service_role anahtarı hiçbir yere yazılmaz.
 5. `npm install` ve `npm run dev`.
 
+Demo için: `supabase/seed/demo_bakery.sql` dosyasındaki işletme adını değiştirip SQL Editor'de çalıştır; boş bir işletmeye ürünleri, tarifleri ve bir günlük örnek hareketleri yükler.
+
 Vercel'de aynı iki ortam değişkenini (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) tanımla.
 
 ## Testler
@@ -56,7 +58,7 @@ app/                 pages (routes) and server actions
 components/          client UI (sale screen with receipt, production form, stock screen, navigation)
 lib/domain/          pure business rules + tests (stock, dates; no I/O)
 lib/                 session, Supabase client, form helpers, types, sample bakery data
-supabase/            schema.sql (tables, RLS, stock functions) and SQL tests
+supabase/            schema.sql (tables, RLS, stock functions), SQL tests, seed/demo_bakery.sql (demo data)
 public/logo/         logo set
 demo/                single-file offline demo (no backend)
 ```
