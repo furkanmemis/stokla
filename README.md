@@ -5,53 +5,68 @@
 Küçük işletmeler için **telefondan kullanılan, basit, rol odaklı stok takip sistemi**.
 İlk hedef: kâğıda yazarak satış yapan bir pastane. Ardından kitapçı, kırtasiye ve benzeri dükkânlar.
 
-> Durum: **fikir ve demo aşaması.** `demo/` klasöründe tek dosyalık, internet gerektirmeyen bir pastane demosu var.
+## Ne yapıyor?
 
-## Demo
-
-`demo/index.html` dosyasını telefonda ya da bilgisayarda tarayıcıyla aç. Veriler sadece o cihazda tutulur.
-
-- **Tezgâh:** satılan ürüne dokun, satışı kaydet. Atılan ürünler için "Fire" modu.
-- **Mutfak:** günlük üretimi gir. Tarifteki malzemeler stoktan kendiliğinden düşer.
-- **Patron:** günlük ciro ve fire, azalan malzeme uyarıları, mal girişi ve sayım, tüm hareketler.
-
-## Yapı: çekirdek + sektör modülleri
-
-| Katman | İçerik |
+| Rol | Ekranlar |
 |---|---|
-| **Çekirdek** | Ürünler, stok giriş/çıkış, kullanıcılar ve roller, azalan stok uyarısı, raporlar. Her işletmenin verisi tamamen ayrı. |
-| **Pastane modülü** | Tarif → malzeme (üretimde otomatik düşüm), günlük üretim, son kullanma tarihi, gün sonu fire. |
-| **Kitapçı modülü** (sonra) | Barkod okutunca ISBN'den kitap bilgisi, yayınevine göre sipariş listesi, konsinye takibi. |
+| **Patron** | Bugün (ciro, fire, azalan stok), Satış, Üretim, Malzeme, Ürünler ve tarifler, Ekip, Hareketler |
+| **Tezgâh** | Satış ve fire: ürüne dokun, kaydet |
+| **Mutfak** | Üretim (tarifteki malzemeler stoktan otomatik düşer) ve mal kabul |
+| **Depo** | Mal kabul ve sayım |
 
-## Roller
+- Patron dükkânı açar, çalışanlara **6 haneli davet kodu** verir; her çalışan sadece kendi ekranlarını görür.
+- Stok yalnızca hareketlerle değişir (satış, fire, üretim, mal girişi, sayım). Her hareket tek işlemde kaydedilir; stok ve geçmiş hiçbir zaman çelişmez.
+- Her dükkânın verisi veritabanı düzeyinde (RLS) diğerlerinden ayrıdır.
+- Boş bir dükkâna tek tıkla **örnek pastane verileri** yüklenebilir.
 
-Her kişi sadece kendi işini görür; bir işlem en fazla 3 dokunuş.
+## Teknoloji
 
-| Rol | Görür / yapar |
-|---|---|
-| Patron | Her şey, raporlar, kullanıcı ekleme, mal girişi, sayım |
-| Tezgâh / Kasa | Satış ve fire |
-| Mutfak / Üretim | Üretim ve malzeme kullanımı |
-| Depo | Mal kabul ve sayım |
+- **Next.js 15** (App Router, server actions) · **Supabase** (PostgreSQL, giriş, RLS) · **Vercel**
+- Telefona uygulama gibi eklenebilir (web app manifest).
+- Giriş: e-postaya gelen şifresiz bağlantı.
+
+## Kurulum
+
+1. Supabase'de yeni proje aç (bölge: **Frankfurt / eu-central-1**).
+2. **SQL Editor**'de `supabase/schema.sql` dosyasının tamamını çalıştır (tekrar çalıştırmak güvenlidir).
+3. **Authentication → URL Configuration**: Site URL'yi sitenin adresi yap; Redirect URLs'e `https://ADRES/auth/callback` ekle (geliştirirken `http://localhost:3000/auth/callback`).
+4. `.env.example` dosyasını `.env.local` olarak kopyala; Supabase **Project URL** ve **publishable (anon) key** değerlerini yaz. Secret / service_role anahtarı hiçbir yere yazılmaz.
+5. `npm install` ve `npm run dev`.
+
+Vercel'de aynı iki ortam değişkenini (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) tanımla.
+
+## Testler
+
+```bash
+npm test                 # domain rules (vitest)
+npx tsc --noEmit         # types
+npx next build           # production build
+
+# database rules, against a throwaway local PostgreSQL (never on Supabase):
+psql -v ON_ERROR_STOP=1 -d stokla_test \
+  -f supabase/tests/supabase_stub.sql -f supabase/schema.sql -f supabase/tests/rules_test.sql
+```
+
+## Klasörler
+
+```
+app/                 pages (routes) and server actions
+  _actions/auth.ts       login, sign-out, create / join a business
+  app/_actions/          stock movements, catalog, team (one file per responsibility)
+  app/<screen>/          sales, production, ingredients, today, catalog, team, movements
+components/          client UI (sale grid, production form, ingredient list, tabs)
+lib/domain/          pure business rules + tests (no I/O)
+lib/                 session, Supabase client, form helpers, types, sample bakery data
+supabase/            schema.sql (tables, RLS, stock functions) and SQL tests
+public/logo/         logo set
+demo/                single-file offline demo (no backend)
+```
 
 ## Barkod planı (en ucuzdan)
 
 1. **Telefon kamerası:** ek cihaz yok, tarayıcıdan okutulur.
 2. **USB / Bluetooth el okuyucu:** klavye gibi çalışır, kurulum ve entegrasyon gerekmez.
 3. **Termal etiket yazıcı:** pastanenin kendi ürünleri için sistemin ürettiği barkod etiketlerini basar.
-
-## Teknik plan
-
-- **Next.js** (telefona uygulama gibi kurulabilen web uygulaması, PWA), **Supabase** (veritabanı, giriş, satır düzeyi güvenlik ile işletme verilerinin ayrılması), **Vercel** (yayın).
-- Arayüz metinleri Türkçe; kod, dosya adları ve kod yorumları İngilizce.
-- KVKK: yalnızca işin gerektirdiği veri tutulur.
-
-## Klasörler
-
-```
-demo/          tek dosyalık pastane demosu (HTML, internet gerekmez)
-public/logo/   logo seti (SVG + ikon PNG'leri)
-```
 
 ## Marka
 
