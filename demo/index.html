@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F07A1A">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Stokla — Pastane demo</title>
+<style>
+  :root {
+    --bg: #FFF8F1; --card: #ffffff; --ink: #1F1A17; --muted: #6B5E55; --line: #EFE2D4;
+    --brand: #F07A1A; --brand-ink: #B65D14; --brand-2: #F07A1A; --cream: #FDEBDC;
+    --ok: #2f7d4f; --ok-bg: #e5f3ea; --warn: #a86a00; --warn-bg: #fdf0d6; --bad: #b3261e; --bad-bg: #fbe4e2;
+    --r: 16px; --shadow: 0 1px 2px rgba(60,30,20,.06), 0 4px 14px rgba(60,30,20,.06);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+  .app { max-width: 520px; margin: 0 auto; min-height: 100vh; padding-bottom: 110px; }
+
+  header { position: sticky; top: 0; z-index: 5; background: var(--ink); color: #fff;
+    padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
+  header .shop { font-weight: 700; font-size: 17px; flex: 1; }
+  header .shop small { display: block; font-weight: 400; opacity: .8; font-size: 12px; }
+  .role-btn { background: rgba(255,255,255,.16); color: #fff; padding: 8px 12px; border-radius: 999px; font-size: 14px; font-weight: 600; }
+
+  .tabs { display: flex; gap: 6px; padding: 10px 12px 0; overflow-x: auto; }
+  .tab { padding: 9px 14px; border-radius: 999px; background: var(--cream); color: var(--brand-ink); font-weight: 600; font-size: 14px; white-space: nowrap; }
+  .tab.on { background: var(--brand); color: #fff; }
+
+  main { padding: 12px; }
+  h2 { font-size: 20px; margin: 6px 4px 12px; }
+  .hint { color: var(--muted); font-size: 14px; margin: -6px 4px 12px; }
+
+  /* role picker */
+  .roles { padding: 24px 16px; }
+  .roles h1 { font-size: 26px; margin: 8px 0 4px; }
+  .roles p { color: var(--muted); margin: 0 0 20px; }
+  .role { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; background: var(--card);
+    border-radius: var(--r); padding: 18px 16px; margin-bottom: 12px; box-shadow: var(--shadow); }
+  .role .ic { font-size: 34px; width: 52px; height: 52px; display: grid; place-items: center; background: var(--cream); border-radius: 14px; }
+  .role b { display: block; font-size: 18px; }
+  .role span { color: var(--muted); font-size: 14px; }
+
+  /* product grid */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 360px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  .p { position: relative; background: var(--card); border-radius: var(--r); padding: 12px 8px 10px; text-align: center; box-shadow: var(--shadow);
+    min-height: 128px; display: flex; flex-direction: column; align-items: center; gap: 2px; transition: transform .08s; }
+  .p:active { transform: scale(.96); }
+  .p .em { font-size: 38px; line-height: 1.1; }
+  .p .nm { font-weight: 600; font-size: 14px; line-height: 1.2; }
+  .p .pr { color: var(--brand-ink); font-weight: 700; font-size: 14px; }
+  .p .st { font-size: 12px; color: var(--muted); }
+  .p .st.low { color: var(--warn); font-weight: 600; }
+  .p .st.out { color: var(--bad); font-weight: 700; }
+  .p .badge { position: absolute; top: 6px; right: 6px; background: var(--ink); color: #fff; border-radius: 999px; min-width: 26px; height: 26px;
+    display: grid; place-items: center; font-weight: 700; font-size: 14px; padding: 0 6px; }
+  .p.out { opacity: .5; }
+
+  .mode { display: flex; background: var(--cream); border-radius: 999px; padding: 4px; margin-bottom: 12px; }
+  .mode button { flex: 1; padding: 10px; border-radius: 999px; font-weight: 600; color: var(--brand-ink); }
+  .mode button.on { background: var(--card); box-shadow: var(--shadow); }
+  .mode button.on.fire { color: var(--bad); }
+
+  /* bottom action bar */
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: linear-gradient(transparent, var(--bg) 30%); }
+  .bar-in { max-width: 496px; margin: 0 auto; display: flex; gap: 8px; }
+  .big { flex: 1; background: var(--brand); color: var(--ink); border-radius: 14px; padding: 16px; font-weight: 700; font-size: 17px; box-shadow: var(--shadow); }
+  .big.fire { background: var(--bad); color: #fff; }
+  .big.ok { background: var(--ok); color: #fff; }
+  .big:disabled { background: #E9DCCF; color: var(--muted); box-shadow: none; }
+  .clear { background: var(--card); border-radius: 14px; padding: 0 16px; font-weight: 600; color: var(--muted); box-shadow: var(--shadow); }
+
+  /* lists */
+  .card { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); padding: 14px; margin-bottom: 12px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .row .em { font-size: 28px; width: 36px; text-align: center; }
+  .row .mid { flex: 1; min-width: 0; }
+  .row .mid b { display: block; }
+  .row .mid small { color: var(--muted); }
+  .meter { height: 6px; background: var(--line); border-radius: 99px; margin-top: 6px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--ok); border-radius: 99px; }
+  .meter i.low { background: var(--warn); } .meter i.bad { background: var(--bad); }
+  .qty { font-weight: 700; white-space: nowrap; }
+
+  .stepper { display: flex; align-items: center; gap: 4px; }
+  .stepper button { width: 44px; height: 44px; border-radius: 12px; background: var(--cream); color: var(--brand-ink); font-size: 22px; font-weight: 700; }
+  .stepper output { min-width: 40px; text-align: center; font-weight: 700; font-size: 18px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .kpi { background: var(--card); border-radius: 14px; padding: 12px 10px; box-shadow: var(--shadow); }
+  .kpi small { color: var(--muted); font-size: 12px; display: block; }
+  .kpi b { font-size: 19px; }
+  .alert { border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; font-size: 14px; display: flex; gap: 8px; align-items: flex-start; }
+  .alert.warn { background: var(--warn-bg); color: #6b4300; } .alert.bad { background: var(--bad-bg); color: #7d1a14; } .alert.ok { background: var(--ok-bg); color: #1d5233; }
+  .bars .b { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 14px; }
+  .bars .b span:first-child { width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bars .b .t { flex: 1; height: 10px; background: var(--cream); border-radius: 99px; overflow: hidden; }
+  .bars .b .t i { display: block; height: 100%; background: var(--brand-2); }
+  .card h3 { margin: 0 0 8px; font-size: 16px; }
+  .log .row { align-items: flex-start; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+  .tag.satis { background: var(--ok-bg); color: var(--ok); } .tag.fire { background: var(--bad-bg); color: var(--bad); }
+  .tag.uretim { background: var(--cream); color: var(--brand-ink); } .tag.mal { background: #e3eefb; color: #1d4f8c; } .tag.sayim { background: #eee; color: #555; }
+  .empty { text-align: center; color: var(--muted); padding: 30px 10px; }
+
+  /* sheet */
+  .scrim { position: fixed; inset: 0; background: rgba(30,15,10,.4); z-index: 20; display: none; }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; background: var(--card); border-radius: 22px 22px 0 0;
+    padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); max-width: 520px; margin: 0 auto; transform: translateY(110%); transition: transform .2s; }
+  .sheet.on { transform: none; } .scrim.on { display: block; }
+  .sheet h3 { margin: 0 0 4px; font-size: 20px; } .sheet p { margin: 0 0 14px; color: var(--muted); }
+  .quick { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+  .quick button { flex: 1; min-width: 64px; padding: 12px 0; border-radius: 12px; background: var(--cream); color: var(--brand-ink); font-weight: 700; }
+  .numin { width: 100%; font: inherit; font-size: 28px; font-weight: 700; text-align: center; padding: 12px; border: 2px solid var(--line); border-radius: 14px; }
+  .seg { display: flex; gap: 8px; margin-bottom: 12px; }
+  .seg button { flex: 1; padding: 10px; border-radius: 12px; background: var(--cream); color: var(--brand-ink); font-weight: 600; }
+  .seg button.on { background: var(--brand); color: #fff; }
+
+  .toast { position: fixed; left: 50%; top: calc(76px + env(safe-area-inset-top)); transform: translateX(-50%) translateY(-12px); opacity: 0; z-index: 30;
+    background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 12px; font-weight: 600; transition: all .2s; pointer-events: none; max-width: 90vw; text-align: center; }
+  .toast.on { opacity: 1; transform: translateX(-50%); }
+  .toast.bad { background: var(--bad); }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 18px 12px; }
+  footer button { color: var(--brand-ink); text-decoration: underline; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- demo data (sample bakery; numbers are illustrative) ----------
+const INGREDIENTS = [
+  { id: "un", name: "Un", em: "🌾", unit: "kg", stock: 40, min: 15 },
+  { id: "seker", name: "Toz şeker", em: "🍚", unit: "kg", stock: 18, min: 8 },
+  { id: "tereyag", name: "Tereyağı", em: "🧈", unit: "kg", stock: 9, min: 4 },
+  { id: "yumurta", name: "Yumurta", em: "🥚", unit: "adet", stock: 180, min: 60 },
+  { id: "sut", name: "Süt", em: "🥛", unit: "L", stock: 20, min: 8 },
+  { id: "krema", name: "Krema", em: "🍦", unit: "L", stock: 6, min: 5 },
+  { id: "cikolata", name: "Bitter çikolata", em: "🍫", unit: "kg", stock: 4, min: 3 },
+  { id: "meyve", name: "Taze meyve", em: "🍓", unit: "kg", stock: 3, min: 2 },
+  { id: "peynir", name: "Beyaz peynir", em: "🧀", unit: "kg", stock: 5, min: 2 },
+  { id: "krempeynir", name: "Krem peynir", em: "🥣", unit: "kg", stock: 2.5, min: 2 },
+];
+const PRODUCTS = [
+  { id: "pogaca", name: "Peynirli poğaça", em: "🥐", price: 25, unit: "adet", stock: 40, min: 15,
+    recipe: { un: 0.05, tereyag: 0.01, yumurta: 0.1, sut: 0.02, peynir: 0.015 } },
+  { id: "acma", name: "Açma", em: "🥯", price: 22, unit: "adet", stock: 30, min: 12,
+    recipe: { un: 0.06, tereyag: 0.012, seker: 0.005, sut: 0.02 } },
+  { id: "simit", name: "Kurabiye (250 g)", em: "🍪", price: 90, unit: "paket", stock: 14, min: 5,
+    recipe: { un: 0.12, tereyag: 0.06, seker: 0.05, yumurta: 0.5 } },
+  { id: "ekler", name: "Ekler", em: "🥖", price: 30, unit: "adet", stock: 24, min: 10,
+    recipe: { un: 0.015, tereyag: 0.01, yumurta: 0.3, krema: 0.03, cikolata: 0.01 } },
+  { id: "profiterol", name: "Profiterol", em: "🍮", price: 120, unit: "porsiyon", stock: 10, min: 4,
+    recipe: { un: 0.04, tereyag: 0.03, yumurta: 1, krema: 0.1, cikolata: 0.06, sut: 0.1 } },
+  { id: "cheesecake", name: "Cheesecake dilim", em: "🍰", price: 140, unit: "dilim", stock: 8, min: 4,
+    recipe: { krempeynir: 0.1, seker: 0.02, yumurta: 0.4, krema: 0.03, tereyag: 0.01 } },
+  { id: "dilim", name: "Yaş pasta dilim", em: "🧁", price: 110, unit: "dilim", stock: 12, min: 6,
+    recipe: { un: 0.03, seker: 0.03, yumurta: 0.5, krema: 0.06, meyve: 0.03, sut: 0.05 } },
+  { id: "cikpasta", name: "Çikolatalı pasta", em: "🎂", price: 950, unit: "bütün", stock: 3, min: 2,
+    recipe: { un: 0.3, seker: 0.3, yumurta: 6, krema: 0.6, cikolata: 0.35, sut: 0.4 } },
+  { id: "meyvepasta", name: "Meyveli pasta", em: "🍓", price: 900, unit: "bütün", stock: 2, min: 2,
+    recipe: { un: 0.3, seker: 0.3, yumurta: 6, krema: 0.7, meyve: 0.4, sut: 0.4 } },
+];
+const ROLES = {
+  tezgah: { name: "Tezgâh", em: "🧾", desc: "Satış ve fire girer", tabs: [["sat", "Satış"]] },
+  mutfak: { name: "Mutfak", em: "👩‍🍳", desc: "Günlük üretimi girer", tabs: [["uret", "Üretim"], ["malz", "Malzeme"]] },
+  patron: { name: "Patron", em: "👑", desc: "Her şeyi görür, mal girişi yapar",
+    tabs: [["ozet", "Bugün"], ["malz", "Malzeme"], ["urun", "Ürünler"], ["log", "Hareketler"], ["sat", "Satış"], ["uret", "Üretim"]] },
+};
+const KEY = "stokla-pastane-demo-v1";
+
+// ---------- state ----------
+const clone = (x) => JSON.parse(JSON.stringify(x));
+function freshState() {
+  return { ings: clone(INGREDIENTS), prods: clone(PRODUCTS), log: [], role: null, tab: null, cart: {}, prod: {}, fire: false };
+}
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)) || freshState(); } catch { S = freshState(); }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage may be unavailable */ } }
+
+const tl = (n) => "₺" + new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(n);
+const num = (n) => new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(Math.round(n * 100) / 100);
+const ing = (id) => S.ings.find((x) => x.id === id);
+const prod = (id) => S.prods.find((x) => x.id === id);
+const today = () => new Date().toDateString();
+const todays = () => S.log.filter((e) => new Date(e.t).toDateString() === today());
+const hhmm = (t) => new Date(t).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function toast(msg, bad) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.className = "toast on" + (bad ? " bad" : "");
+  clearTimeout(toast._t); toast._t = setTimeout(() => (el.className = "toast"), 2200);
+}
+function addLog(type, items, extra = {}) {
+  S.log.unshift({ t: Date.now(), type, items, by: ROLES[S.role]?.name ?? "", ...extra });
+  S.log = S.log.slice(0, 300);
+}
+const level = (stock, min) => (stock <= 0 ? "bad" : stock < min ? "low" : "");
+
+// ---------- actions ----------
+function tapProduct(id) {
+  const p = prod(id);
+  const inCart = S.cart[id] || 0;
+  if (inCart + 1 > p.stock) { toast(`Vitrinde ${p.name} kalmadı. Mutfak üretim girmeli.`, true); return; }
+  S.cart[id] = inCart + 1; save(); render();
+  if (navigator.vibrate) navigator.vibrate(15);
+}
+function commitCart() {
+  const ids = Object.keys(S.cart).filter((k) => S.cart[k] > 0);
+  if (!ids.length) return;
+  const items = ids.map((id) => ({ id, n: S.cart[id] }));
+  let total = 0;
+  items.forEach(({ id, n }) => { const p = prod(id); p.stock -= n; total += p.price * n; });
+  addLog(S.fire ? "fire" : "satis", items, { total });
+  toast(S.fire ? `Fire kaydedildi (${tl(total)})` : `Satış kaydedildi: ${tl(total)}`);
+  S.cart = {}; save(); render();
+}
+function stepProd(id, d) {
+  S.prod[id] = Math.max(0, (S.prod[id] || 0) + d); save(); render();
+}
+function commitProduction() {
+  const ids = Object.keys(S.prod).filter((k) => S.prod[k] > 0);
+  if (!ids.length) return;
+  const need = {};
+  ids.forEach((id) => Object.entries(prod(id).recipe).forEach(([g, q]) => (need[g] = (need[g] || 0) + q * S.prod[id])));
+  const short = Object.entries(need).filter(([g, q]) => ing(g).stock < q);
+  if (short.length) {
+    toast("Yetersiz malzeme: " + short.map(([g, q]) => `${ing(g).name} (${num(q)} ${ing(g).unit} lazım, ${num(ing(g).stock)} var)`).join(", "), true);
+    return;
+  }
+  Object.entries(need).forEach(([g, q]) => (ing(g).stock = Math.round((ing(g).stock - q) * 1000) / 1000));
+  const items = ids.map((id) => ({ id, n: S.prod[id] }));
+  items.forEach(({ id, n }) => (prod(id).stock += n));
+  addLog("uretim", items, { used: need });
+  const lows = Object.keys(need).filter((g) => ing(g).stock < ing(g).min).map((g) => ing(g).name);
+  toast(lows.length ? `Üretim kaydedildi. Azalan: ${lows.join(", ")}` : "Üretim kaydedildi, malzemeler stoktan düştü");
+  S.prod = {}; save(); render();
+}
+
+// ---------- sheet: goods received / stock count ----------
+let sheetMode = "mal";
+function openIngredient(id) {
+  const g = ing(id); sheetMode = "mal";
+  const draw = () => {
+    const sh = document.getElementById("sheet");
+    const isMal = sheetMode === "mal";
+    const quick = g.unit === "adet" ? [30, 90, 180] : [1, 5, 10, 25];
+    sh.innerHTML = `
+      <h3>${g.em} ${esc(g.name)}</h3>
+      <p>Şu an: <b>${num(g.stock)} ${g.unit}</b> · en az ${num(g.min)} ${g.unit} olmalı</p>
+      ${S.role === "patron" ? `<div class="seg">
+        <button class="${isMal ? "on" : ""}" data-m="mal">📦 Mal geldi</button>
+        <button class="${!isMal ? "on" : ""}" data-m="sayim">🔢 Sayım</button>
+      </div>` : ""}
+      <input class="numin" id="qin" type="number" inputmode="decimal" min="0" step="any" placeholder="${isMal ? "Gelen miktar" : "Rafta sayılan"}">
+      ${isMal ? `<div class="quick">${quick.map((q) => `<button data-q="${q}">+${q}</button>`).join("")}</div>` : `<div style="height:12px"></div>`}
+      <div style="display:flex;gap:8px">
+        <button class="clear" data-close style="padding:16px">Vazgeç</button>
+        <button class="big ${isMal ? "" : "ok"}" data-save>${isMal ? "Stoğa ekle" : "Sayımı kaydet"}</button>
+      </div>`;
+    sh.querySelectorAll("[data-m]").forEach((b) => (b.onclick = () => { sheetMode = b.dataset.m; draw(); }));
+    sh.querySelectorAll("[data-q]").forEach((b) => (b.onclick = () => {
+      const i = document.getElementById("qin"); i.value = (Number(i.value) || 0) + Number(b.dataset.q);
+    }));
+    sh.querySelector("[data-close]").onclick = closeSheet;
+    sh.querySelector("[data-save]").onclick = () => {
+      const v = Number(String(document.getElementById("qin").value).replace(",", "."));
+      if (!(v >= 0) || (isMal && v === 0)) { toast("Bir miktar yaz", true); return; }
+      if (isMal) { g.stock = Math.round((g.stock + v) * 1000) / 1000; addLog("mal", [{ ing: g.id, n: v }]); toast(`${g.name}: +${num(v)} ${g.unit} eklendi`); }
+      else { const diff = v - g.stock; g.stock = v; addLog("sayim", [{ ing: g.id, n: v, diff }]); toast(`Sayım kaydedildi (${diff >= 0 ? "+" : ""}${num(diff)} ${g.unit} fark)`); }
+      save(); closeSheet(); render();
+    };
+  };
+  if (S.role !== "patron") sheetMode = "mal";
+  draw();
+  document.getElementById("sheet").classList.add("on");
+  document.getElementById("scrim").classList.add("on");
+  setTimeout(() => document.getElementById("qin")?.focus(), 250);
+}
+function closeSheet() {
+  document.getElementById("sheet").classList.remove("on");
+  document.getElementById("scrim").classList.remove("on");
+}
+document.getElementById("scrim").onclick = closeSheet;
+
+// ---------- views ----------
+function viewRoles() {
+  return `<div class="roles">
+    <div style="display:flex;align-items:center;gap:10px"><svg width="44" height="44" viewBox="0 0 120 120" aria-hidden="true" style="flex-shrink:0"><rect x="12" y="62" width="46" height="46" rx="7" fill="#F07A1A"/><rect x="62" y="62" width="46" height="46" rx="7" fill="#B65D14"/><rect x="37" y="12" width="46" height="46" rx="7" fill="#F07A1A"/><rect x="29" y="62" width="12" height="16" fill="#F6AD71"/><rect x="79" y="62" width="12" height="16" fill="#F6AD71" fill-opacity=".75"/><rect x="54" y="12" width="12" height="16" fill="#F6AD71"/></svg><b style="font-size:28px;letter-spacing:-.03em">Stokla</b></div>
+    <h1>Örnek Pastane</h1>
+    <p>Kim olarak giriyorsun? Herkes sadece kendi işini görür.</p>
+    ${Object.entries(ROLES).map(([k, r]) => `
+      <button class="role" data-role="${k}"><span class="ic">${r.em}</span><span><b>${r.name}</b><span>${r.desc}</span></span></button>`).join("")}
+    <p style="margin-top:18px;font-size:13px">Bu bir demodur. Gerçek sistemde her kişi kendi telefonundan kendi şifresiyle girer.</p>
+  </div>`;
+}
+
+function viewSale() {
+  const cartN = Object.values(S.cart).reduce((a, b) => a + b, 0);
+  const total = Object.entries(S.cart).reduce((a, [id, n]) => a + prod(id).price * n, 0);
+  return `
+    <div class="mode">
+      <button class="${!S.fire ? "on" : ""}" data-fire="0">🧾 Satış</button>
+      <button class="${S.fire ? "on fire" : ""}" data-fire="1">🗑️ Fire / bozuldu</button>
+    </div>
+    <p class="hint">${S.fire ? "Atılan, bozulan ürünlere dokun." : "Satılan ürüne dokun, her dokunuş 1 adet."}</p>
+    <div class="grid">
+      ${S.prods.map((p) => {
+        const c = S.cart[p.id] || 0; const left = p.stock - c; const lv = level(left, p.min);
+        return `<button class="p ${p.stock <= 0 ? "out" : ""}" data-p="${p.id}">
+          ${c ? `<span class="badge">${c}</span>` : ""}
+          <span class="em">${p.em}</span><span class="nm">${esc(p.name)}</span>
+          <span class="pr">${tl(p.price)}</span>
+          <span class="st ${lv === "bad" ? "out" : lv === "low" ? "low" : ""}">${left <= 0 ? "Bitti" : `Vitrinde ${left}`}</span>
+        </button>`; }).join("")}
+    </div>
+    <div class="bar"><div class="bar-in">
+      ${cartN ? `<button class="clear" data-clear>Temizle</button>` : ""}
+      <button class="big ${S.fire ? "fire" : ""}" data-commit ${cartN ? "" : "disabled"}>
+        ${cartN ? `${S.fire ? "Fireyi kaydet" : "Satışı kaydet"} · ${cartN} ürün · ${tl(total)}` : "Ürüne dokun"}
+      </button>
+    </div></div>`;
+}
+
+function viewProduction() {
+  const n = Object.values(S.prod).reduce((a, b) => a + b, 0);
+  return `
+    <h2>Bugün ne ürettin?</h2>
+    <p class="hint">Adetleri gir, kaydet. Tarifteki malzemeler stoktan kendiliğinden düşer.</p>
+    <div class="card">
+      ${S.prods.map((p) => `<div class="row">
+        <span class="em">${p.em}</span>
+        <span class="mid"><b>${esc(p.name)}</b><small>Vitrinde ${p.stock} ${p.unit}</small></span>
+        <span class="stepper">
+          <button data-step="${p.id}" data-d="-1" aria-label="azalt">−</button>
+          <output>${S.prod[p.id] || 0}</output>
+          <button data-step="${p.id}" data-d="1" aria-label="artır">+</button>
+        </span>
+      </div>`).join("")}
+    </div>
+    <div class="bar"><div class="bar-in">
+      <button class="big ok" data-produce ${n ? "" : "disabled"}>${n ? `Üretimi kaydet · ${n} ürün` : "Adet gir"}</button>
+    </div></div>`;
+}
+
+function viewIngredients() {
+  const sorted = [...S.ings].sort((a, b) => a.stock / a.min - b.stock / b.min);
+  return `
+    <h2>Malzeme stoğu</h2>
+    <p class="hint">${S.role === "patron" ? "Mal gelince ya da sayım yapınca malzemeye dokun." : "Mal gelince malzemeye dokun ve gelen miktarı gir."}</p>
+    <div class="card">
+      ${sorted.map((g) => { const lv = level(g.stock, g.min); const pct = Math.min(100, (g.stock / (g.min * 3)) * 100);
+        return `<button class="row" style="width:100%;text-align:left" data-ing="${g.id}">
+          <span class="em">${g.em}</span>
+          <span class="mid"><b>${esc(g.name)}</b>
+            <small>${lv === "bad" ? "⛔ Bitti" : lv === "low" ? "⚠️ Azaldı, sipariş ver" : "Yeterli"}</small>
+            <div class="meter"><i class="${lv}" style="width:${pct}%"></i></div></span>
+          <span class="qty">${num(g.stock)} ${g.unit}</span>
+        </button>`; }).join("")}
+    </div>`;
+}
+
+function viewProducts() {
+  return `
+    <h2>Ürünler ve tarifler</h2>
+    <p class="hint">Her ürün için 1 adet/dilim yapınca kullanılan malzeme.</p>
+    ${S.prods.map((p) => `<div class="card">
+      <div class="row" style="padding-top:0">
+        <span class="em">${p.em}</span>
+        <span class="mid"><b>${esc(p.name)}</b><small>${tl(p.price)} / ${p.unit} · vitrinde ${p.stock}</small></span>
+      </div>
+      <small style="color:var(--muted)">${Object.entries(p.recipe).map(([g, q]) => `${ing(g).name} ${num(q)} ${ing(g).unit}`).join(" · ")}</small>
+    </div>`).join("")}`;
+}
+
+function viewSummary() {
+  const L = todays();
+  const sales = L.filter((e) => e.type === "satis"), fires = L.filter((e) => e.type === "fire");
+  const revenue = sales.reduce((a, e) => a + e.total, 0);
+  const soldN = sales.reduce((a, e) => a + e.items.reduce((x, i) => x + i.n, 0), 0);
+  const fireTL = fires.reduce((a, e) => a + e.total, 0);
+  const byProd = {};
+  sales.forEach((e) => e.items.forEach((i) => (byProd[i.id] = (byProd[i.id] || 0) + i.n)));
+  const top = Object.entries(byProd).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const maxN = top[0]?.[1] || 1;
+  const lowIng = S.ings.filter((g) => g.stock < g.min);
+  const lowProd = S.prods.filter((p) => p.stock < p.min);
+  return `
+    <h2>Bugün</h2>
+    <div class="kpis">
+      <div class="kpi"><small>Ciro</small><b>${tl(revenue)}</b></div>
+      <div class="kpi"><small>Satılan</small><b>${soldN}</b></div>
+      <div class="kpi"><small>Fire</small><b style="color:${fireTL ? "var(--bad)" : "inherit"}">${tl(fireTL)}</b></div>
+    </div>
+    ${lowIng.map((g) => `<div class="alert ${g.stock <= 0 ? "bad" : "warn"}">${g.em} <span><b>${esc(g.name)}</b> azaldı: ${num(g.stock)} ${g.unit} kaldı (en az ${num(g.min)}). Sipariş ver.</span></div>`).join("")}
+    ${lowProd.map((p) => `<div class="alert warn">${p.em} <span>Vitrinde <b>${esc(p.name)}</b> az: ${p.stock} ${p.unit}. Mutfağa haber ver.</span></div>`).join("")}
+    ${!lowIng.length && !lowProd.length ? `<div class="alert ok">✅ <span>Her şey yolunda, azalan malzeme yok.</span></div>` : ""}
+    <div class="card bars">
+      <h3>En çok satanlar</h3>
+      ${top.length ? top.map(([id, n]) => `<div class="b"><span>${prod(id).em} ${esc(prod(id).name)}</span><span class="t"><i style="width:${(n / maxN) * 100}%"></i></span><b>${n}</b></div>`).join("")
+        : `<div class="empty">Henüz satış yok. "Satış" sekmesinden birkaç ürüne dokunup dene.</div>`}
+    </div>`;
+}
+
+function viewLog() {
+  if (!S.log.length) return `<h2>Hareketler</h2><div class="empty">Henüz hareket yok.</div>`;
+  const label = { satis: "Satış", fire: "Fire", uretim: "Üretim", mal: "Mal geldi", sayim: "Sayım" };
+  return `<h2>Hareketler</h2><div class="card log">
+    ${S.log.slice(0, 60).map((e) => {
+      const what = e.items.map((i) => i.ing ? `${ing(i.ing).name} ${e.type === "sayim" ? "=" : "+"}${num(i.n)} ${ing(i.ing).unit}` : `${i.n} × ${prod(i.id).name}`).join(", ");
+      return `<div class="row"><span class="mid">
+        <span class="tag ${e.type}">${label[e.type]}</span> <small>${hhmm(e.t)} · ${esc(e.by)}</small>
+        <div style="margin-top:4px">${esc(what)}</div></span>
+        ${e.total ? `<span class="qty">${tl(e.total)}</span>` : ""}</div>`; }).join("")}
+  </div>`;
+}
+
+// ---------- render ----------
+function render() {
+  const app = document.getElementById("app");
+  if (!S.role) { app.innerHTML = viewRoles(); bind(); return; }
+  const role = ROLES[S.role];
+  if (!role.tabs.some(([k]) => k === S.tab)) S.tab = role.tabs[0][0];
+  const views = { sat: viewSale, uret: viewProduction, malz: viewIngredients, urun: viewProducts, ozet: viewSummary, log: viewLog };
+  app.innerHTML = `
+    <header><svg width="30" height="30" viewBox="0 0 120 120" aria-hidden="true" style="flex-shrink:0"><rect x="12" y="62" width="46" height="46" rx="7" fill="#F07A1A"/><rect x="62" y="62" width="46" height="46" rx="7" fill="#B65D14"/><rect x="37" y="12" width="46" height="46" rx="7" fill="#F07A1A"/><rect x="29" y="62" width="12" height="16" fill="#F6AD71"/><rect x="79" y="62" width="12" height="16" fill="#F6AD71" fill-opacity=".75"/><rect x="54" y="12" width="12" height="16" fill="#F6AD71"/></svg><span class="shop">Örnek Pastane<small>Stokla · demo</small></span>
+      <button class="role-btn" data-switch>${role.em} ${role.name} ▾</button></header>
+    ${role.tabs.length > 1 ? `<nav class="tabs">${role.tabs.map(([k, t]) => `<button class="tab ${S.tab === k ? "on" : ""}" data-tab="${k}">${t}</button>`).join("")}</nav>` : ""}
+    <main>${views[S.tab]()}</main>
+    <footer>Demo verileri sadece bu cihazda tutulur. <button data-reset>Demoyu sıfırla</button></footer>`;
+  bind();
+}
+function bind() {
+  const on = (sel, fn) => document.querySelectorAll(sel).forEach((el) => (el.onclick = () => fn(el)));
+  on("[data-role]", (el) => { S.role = el.dataset.role; S.tab = null; S.cart = {}; S.prod = {}; S.fire = false; save(); render(); window.scrollTo(0, 0); });
+  on("[data-switch]", () => { S.role = null; S.cart = {}; S.prod = {}; save(); render(); });
+  on("[data-tab]", (el) => { S.tab = el.dataset.tab; save(); render(); window.scrollTo(0, 0); });
+  on("[data-p]", (el) => tapProduct(el.dataset.p));
+  on("[data-commit]", commitCart);
+  on("[data-clear]", () => { S.cart = {}; save(); render(); });
+  on("[data-fire]", (el) => { S.fire = el.dataset.fire === "1"; S.cart = {}; save(); render(); });
+  on("[data-step]", (el) => stepProd(el.dataset.step, Number(el.dataset.d)));
+  on("[data-produce]", commitProduction);
+  on("[data-ing]", (el) => openIngredient(el.dataset.ing));
+  on("[data-reset]", () => { const role = S.role; S = freshState(); S.role = role; save(); render(); toast("Demo sıfırlandı"); });
+}
+render();
+</script>
+</body>
+</html>
