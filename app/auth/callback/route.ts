@@ -17,6 +17,6 @@ export async function GET(request: NextRequest) {
   else if (tokenHash && type) ok = !(await supabase.auth.verifyOtp({ token_hash: tokenHash, type })).error;
 
   if (ok) return NextResponse.redirect(new URL(next, url.origin));
-  const msg = "Bağlantı geçersiz ya da süresi dolmuş. E-postayı istediğin telefonda açtığından emin ol ya da yeni bağlantı iste.";
+  const msg = "Bağlantı geçersiz ya da süresi dolmuş. Giriş yapmayı dene ya da yeni bir bağlantı iste.";
   return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(msg)}`, url.origin));
 }

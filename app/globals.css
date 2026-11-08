@@ -234,6 +234,12 @@ table.data button.rowbtn:focus-visible { outline: 3px solid var(--brand); outlin
 .auth-card { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 28px 24px; }
 .auth-card h1 { margin: 18px 0 6px; font-size: 28px; font-weight: 800; letter-spacing: -0.03em; }
 .auth-card p { color: var(--muted); }
+.auth-foot { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--sunken); text-align: center; color: var(--muted); font-size: 15px; }
+.auth-foot a, .auth-card p a { color: var(--brand-deep); font-weight: 700; }
+.password { position: relative; }
+.password .input { padding-right: 84px; }
+.password button { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: var(--ground);
+  border-radius: 10px; padding: 8px 12px; font-weight: 700; font-size: 14px; }
 .code { font: 800 32px/1 "Plus Jakarta Sans", system-ui; letter-spacing: .2em; margin: 8px 0; }
 details.edit > summary { list-style: none; cursor: pointer; }
 details.edit > summary::-webkit-details-marker { display: none; }

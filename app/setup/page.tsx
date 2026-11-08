@@ -4,13 +4,14 @@ import { Alert, param, type SearchParams } from "@/components/Alert";
 import { Wordmark } from "@/components/Logo";
 import { getSession } from "@/lib/session";
 import { SECTOR_LABEL } from "@/lib/types";
-import { createBusiness, joinBusiness, signOut } from "../_actions/auth";
+import { signOut } from "../_actions/auth";
+import { createBusiness, joinBusiness } from "../_actions/onboarding";
 
 export const metadata: Metadata = { title: "Başlangıç" };
 
 export default async function SetupPage({ searchParams }: { searchParams: SearchParams }) {
   const s = await getSession();
-  if (!s.userId) redirect("/login");
+  if (!s.userId) redirect("/register");
   if (s.member) redirect("/app");
   const sp = await searchParams;
 

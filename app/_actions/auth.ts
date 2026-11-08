@@ -1,14 +1,14 @@
 "use server";
 
+// Account actions: sign in, sign up, sign out and password reset (e-mail + password).
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { dbMessage } from "@/lib/db";
-import { redirectWith, text as str } from "@/lib/form";
+import { redirectWith, text } from "@/lib/form";
+import { authMessage, checkEmail, checkNewPassword } from "@/lib/domain/auth";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const fail = (path: string, msg: string): never => redirectWith(path, "error", msg);
+const isBot = (fd: FormData) => text(fd, "website") !== ""; // hidden honeypot field
 
 async function siteOrigin() {
   const fixed = process.env.NEXT_PUBLIC_SITE_URL;
@@ -18,49 +18,69 @@ async function siteOrigin() {
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   return `${proto}://${host}`;
 }
+const callback = async (next: string) => `${await siteOrigin()}/auth/callback?next=${encodeURIComponent(next)}`;
 
-// ---------- auth (e-mail magic link) ----------
-export async function sendLoginLink(fd: FormData) {
-  const email = str(fd, "email").toLowerCase();
-  if (str(fd, "website")) redirect("/login?sent=1"); // honeypot for bots
-  if (!EMAIL_RE.test(email)) fail("/login", "Geçerli bir e-posta adresi yaz.");
+export async function signIn(fd: FormData) {
+  const email = checkEmail(fd.get("email"));
+  const password = String(fd.get("password") ?? "");
+  if (!email.ok) redirectWith("/login", "error", email.error);
+  if (!password) redirectWith(`/login?email=${encodeURIComponent(email.value)}`, "error", "Şifreni yaz.");
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: true, emailRedirectTo: `${await siteOrigin()}/auth/callback?next=/app` },
+  const { error } = await supabase.auth.signInWithPassword({ email: email.value, password });
+  if (error) redirectWith(`/login?email=${encodeURIComponent(email.value)}`, "error", authMessage(error, "Giriş yapılamadı. Tekrar dene."));
+  revalidatePath("/", "layout");
+  redirect("/app");
+}
+
+export async function signUp(fd: FormData) {
+  if (isBot(fd)) redirect("/register?sent=1");
+  const email = checkEmail(fd.get("email"));
+  if (!email.ok) redirectWith("/register", "error", email.error);
+  const password = checkNewPassword(fd.get("password"), fd.get("password_repeat"));
+  if (!password.ok) redirectWith(`/register?email=${encodeURIComponent(email.value)}`, "error", password.error);
+  if (fd.get("terms") !== "on") redirectWith(`/register?email=${encodeURIComponent(email.value)}`, "error", "Devam etmek için kullanım koşullarını onayla.");
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signUp({
+    email: email.value,
+    password: password.value,
+    options: { emailRedirectTo: await callback("/setup") },
   });
-  if (error) fail("/login", "Bağlantı gönderilemedi. Birkaç dakika sonra tekrar dene.");
-  redirect(`/login?sent=1&email=${encodeURIComponent(email)}`);
+  if (error) redirectWith(`/register?email=${encodeURIComponent(email.value)}`, "error", authMessage(error, "Kayıt olunamadı. Tekrar dene."));
+  // With e-mail confirmation on, an existing address comes back without identities instead of an error.
+  if (data.user && data.user.identities?.length === 0) {
+    redirectWith(`/login?email=${encodeURIComponent(email.value)}`, "error", "Bu e-postayla zaten bir hesap var. Giriş yap ya da şifreni sıfırla.");
+  }
+  if (data.session) { revalidatePath("/", "layout"); redirect("/setup"); } // confirmation turned off
+  redirect(`/register?sent=1&email=${encodeURIComponent(email.value)}`);
 }
 
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/");
-}
-
-// ---------- setup: create a business or join one ----------
-export async function createBusiness(fd: FormData) {
-  const name = str(fd, "name", 80);
-  const owner = str(fd, "owner", 60);
-  const sector = str(fd, "sector", 20) || "bakery";
-  if (name.length < 2) fail("/setup", "Dükkânının adını yaz.");
-  if (!owner) fail("/setup", "Adını yaz.");
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("create_business", { p_name: name, p_sector: sector, p_owner_name: owner });
-  if (error) fail("/setup", dbMessage(error, "Dükkân oluşturulamadı. Tekrar dene."));
   revalidatePath("/", "layout");
-  redirect("/app/catalog?welcome=1");
+  redirect("/login");
 }
 
-export async function joinBusiness(fd: FormData) {
-  const code = str(fd, "code", 10).toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const name = str(fd, "name", 60);
-  if (code.length !== 6) fail("/setup", "Davet kodu 6 karakter olmalı.");
-  if (!name) fail("/setup", "Adını yaz.");
+export async function requestPasswordReset(fd: FormData) {
+  if (isBot(fd)) redirect("/forgot-password?sent=1");
+  const email = checkEmail(fd.get("email"));
+  if (!email.ok) redirectWith("/forgot-password", "error", email.error);
   const supabase = await createClient();
-  const { error } = await supabase.rpc("accept_invite", { p_code: code, p_name: name });
-  if (error) fail("/setup", dbMessage(error, "Davet kodu kullanılamadı."));
+  const { error } = await supabase.auth.resetPasswordForEmail(email.value, { redirectTo: await callback("/reset-password") });
+  if (error) redirectWith("/forgot-password", "error", authMessage(error, "Bağlantı gönderilemedi. Birkaç dakika sonra tekrar dene."));
+  // Same answer whether or not the address has an account, so the form cannot be used to probe e-mails.
+  redirect(`/forgot-password?sent=1&email=${encodeURIComponent(email.value)}`);
+}
+
+export async function updatePassword(fd: FormData) {
+  const password = checkNewPassword(fd.get("password"), fd.get("password_repeat"));
+  if (!password.ok) redirectWith("/reset-password", "error", password.error);
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims?.sub) redirectWith("/forgot-password", "error", "Bağlantının süresi dolmuş. Yeni bir sıfırlama bağlantısı iste.");
+  const { error } = await supabase.auth.updateUser({ password: password.value });
+  if (error) redirectWith("/reset-password", "error", authMessage(error, "Şifre değiştirilemedi. Tekrar dene."));
   revalidatePath("/", "layout");
   redirect("/app");
 }
