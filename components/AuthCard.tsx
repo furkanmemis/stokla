@@ -18,11 +18,6 @@ export function AuthCard({ title, intro, children, footer }: {
           <p>Mal girişinden satışa kadar her adım tek yerde. Üretilen ürün havuza, havuzdan vitrine, vitrinden fişe.</p>
         </div>
         <StockFlow className="auth-flow" />
-        <ul className="auth-points">
-          <li>Her yerin ayrı stoğu</li>
-          <li>Telefon ve bilgisayar</li>
-          <li>Admin ve çalışan</li>
-        </ul>
       </section>
       <section className="auth-side">
         <div className="auth-card">
