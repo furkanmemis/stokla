@@ -81,6 +81,10 @@ create table if not exists public.products (
 create unique index if not exists products_barcode_idx on public.products (business_id, barcode) where barcode is not null;
 -- Standard weight of one unit in grams (e.g. 80 for a poğaça); production can record a different one per batch.
 alter table public.products add column if not exists weight_g int check (weight_g is null or weight_g between 1 and 100000);
+-- Units grew with cafés (bardak, şişe); keep the check in one place.
+alter table public.products drop constraint if exists products_unit_check;
+alter table public.products add constraint products_unit_check
+  check (unit in ('adet', 'dilim', 'porsiyon', 'paket', 'bütün', 'kg', 'bardak', 'şişe'));
 -- Menu section shown as a filter on the sales screen (e.g. "Sıcak Kahveler").
 alter table public.products add column if not exists category text check (category is null or length(trim(category)) between 1 and 40);
 -- Made to order (coffee, tea…): no shelf stock; a sale uses up the recipe's ingredients instead.

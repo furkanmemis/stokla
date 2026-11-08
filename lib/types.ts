@@ -25,7 +25,7 @@ export type ExpiringBatch = { product_id: string | null; ingredient_id: string |
 export const ROLE_LABEL: Record<Role, string> = { admin: "Admin", employee: "Çalışan" };
 export const SECTOR_LABEL: Record<Sector, string> = { bakery: "Pastane / fırın", bookstore: "Kitapçı", general: "Diğer dükkân" };
 export const KIND_LABEL: Record<MovementKind, string> = { sale: "Satış", waste: "Fire", production: "Üretim", receipt: "Mal geldi", count: "Sayım" };
-export const PRODUCT_UNITS = ["adet", "dilim", "porsiyon", "paket", "bütün", "kg"] as const;
+export const PRODUCT_UNITS = ["adet", "dilim", "porsiyon", "paket", "bütün", "kg", "bardak", "şişe"] as const;
 export const INGREDIENT_UNITS = ["kg", "g", "L", "ml", "adet", "paket"] as const;
 
 export type NavItem = { href: string; label: string; icon: IconName };
