@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageOf } from "./paging";
+import { pageOf, slicePage } from "./paging";
 
 describe("pageOf", () => {
   it("starts at page 1", () => {
@@ -14,4 +14,13 @@ describe("pageOf", () => {
   });
   it("ignores garbage", () => expect(pageOf("abc", 60, 25).page).toBe(1));
   it("has one page when empty", () => expect(pageOf(1, 0, 25)).toMatchObject({ page: 1, pageCount: 1, hasNext: false }));
+});
+
+describe("slicePage", () => {
+  const items = Array.from({ length: 7 }, (_, i) => i);
+  it("returns the items of the page", () => {
+    expect(slicePage(items, 2, 3).items).toEqual([3, 4, 5]);
+    expect(slicePage(items, 3, 3).items).toEqual([6]);
+  });
+  it("clamps to the last page", () => expect(slicePage(items, 99, 3).page.page).toBe(3));
 });

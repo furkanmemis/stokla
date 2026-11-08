@@ -5,6 +5,8 @@ import { takeFromPool } from "@/app/app/_actions/stock";
 import { checkTake, totalUnits } from "@/lib/domain/pool";
 import { num, type Product } from "@/lib/types";
 import { useToast } from "./useToast";
+import { ClientPager } from "./Pager";
+import { slicePage } from "@/lib/domain/paging";
 
 export type PoolItem = Product & { pool: number; shelf: number };
 
@@ -13,6 +15,8 @@ export function PoolTakeForm({ placeId, placeName, items }: { placeId: string; p
   const ready = items.filter((p) => p.pool > 0);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [pending, start] = useTransition();
+  const [pageNo, setPageNo] = useState(1);
+  const shown = slicePage(ready, pageNo, 20);
   const toast = useToast();
 
   const available = Object.fromEntries(ready.map((p) => [p.id, p.pool]));
@@ -37,7 +41,7 @@ export function PoolTakeForm({ placeId, placeName, items }: { placeId: string; p
   return (
     <>
       {toast.node}
-      {ready.map((p) => {
+      {shown.items.map((p) => {
         const n = qty[p.id] ?? 0;
         return (
           <div className="prod-row" key={p.id}>
@@ -54,6 +58,7 @@ export function PoolTakeForm({ placeId, placeName, items }: { placeId: string; p
           </div>
         );
       })}
+      <ClientPager page={shown.page} onPage={setPageNo} />
       <div className="savebar">
         <button type="button" className="btn" disabled={!units || pending} onClick={take}>
           {pending ? "Ekleniyor…" : units ? `${placeName} vitrinine al · ${num(units)} ürün` : "Adet gir"}

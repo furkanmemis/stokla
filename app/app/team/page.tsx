@@ -5,6 +5,8 @@ import { getPlaces, requireMember } from "@/lib/session";
 import { placeKind } from "@/lib/domain/places";
 import { ROLE_LABEL, type Invite, type Member, type Place } from "@/lib/types";
 import { PasswordInput } from "@/components/PasswordInput";
+import { Pager } from "@/components/Pager";
+import { slicePage } from "@/lib/domain/paging";
 import { addStaff, assignMember, deleteInvite, removeMember } from "../_actions/team";
 
 export const metadata: Metadata = { title: "Ekip" };
@@ -32,6 +34,9 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
   const invites = (i ?? []) as Invite[];
   const places = allPlaces.filter((p) => p.active);
   const placeName = new Map(allPlaces.map((p) => [p.id, p.name]));
+  const memberPage = slicePage(members, param(sp.page), 20);
+  const invitePage = slicePage(invites, param(sp.ipage), 10);
+  const pageParams = { page: param(sp.page), ipage: param(sp.ipage) };
   const added = param(sp.added);
   const state = param(sp.state);
 
@@ -81,10 +86,10 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
       )}
 
       <div className="row">
-        <section className="panel wide" aria-labelledby="h-team">
+        <section className="panel wide" id="team" aria-labelledby="h-team">
           <h2 id="h-team">Ekip üyeleri</h2>
           <ul className="list">
-            {members.map((x) => (
+            {memberPage.items.map((x) => (
               <li key={x.user_id} className="member">
                 <span className={`avatar ${x.role}`} aria-hidden="true">{x.name.charAt(0).toLocaleUpperCase("tr-TR")}</span>
                 <span className="grow">
@@ -108,12 +113,13 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
               </li>
             ))}
           </ul>
+          <Pager page={memberPage.page} basePath="/app/team" params={pageParams} hash="team" />
         </section>
-        <section className="panel" aria-labelledby="h-invites">
+        <section className="panel" id="pending" aria-labelledby="h-invites">
           <h2 id="h-invites">İlk girişi bekleyenler</h2>
-          {invites.length ? (
+          {invites.length ? (<>
             <ul className="list">
-              {invites.map((x) => (
+              {invitePage.items.map((x) => (
                 <li key={x.code}>
                   <span className="grow">
                     <b>{x.name ?? x.email ?? x.code}</b>
@@ -126,6 +132,7 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
                 </li>
               ))}
             </ul>
+            <Pager page={invitePage.page} basePath="/app/team" params={pageParams} param="ipage" hash="pending" /></>
           ) : <p className="empty">Bekleyen kimse yok.</p>}
         </section>
       </div>

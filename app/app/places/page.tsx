@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Alert, param, type SearchParams } from "@/components/Alert";
 import { getPlaces, requireMember } from "@/lib/session";
 import { placeKind } from "@/lib/domain/places";
+import { slicePage } from "@/lib/domain/paging";
+import { Pager } from "@/components/Pager";
 import type { Member, Place } from "@/lib/types";
 import { savePlace, setPlaceActive } from "../_actions/places";
 
@@ -21,6 +23,7 @@ export default async function PlacesPage({ searchParams }: { searchParams: Searc
   const showForm = !!editing || param(sp.new) === "1" || !places.length;
   // Producing places first (they fill the pool), then places that only sell.
   const ordered = [...places.filter((p) => p.can_produce), ...places.filter((p) => !p.can_produce)];
+  const shown = slicePage(ordered, param(sp.page), 15);
 
   return (
     <>
@@ -33,9 +36,9 @@ export default async function PlacesPage({ searchParams }: { searchParams: Searc
 
       <div className="split">
         <div className="main">
-          {ordered.length ? (
+          {ordered.length ? (<>
             <ul className="places">
-              {ordered.map((p) => (
+              {shown.items.map((p) => (
                 <li key={p.id} className={`panel place ${p.active ? "" : "closed"}`}>
                   <div className="place-head">
                     <b>{p.name}</b>
@@ -56,6 +59,7 @@ export default async function PlacesPage({ searchParams }: { searchParams: Searc
                 </li>
               ))}
             </ul>
+            <Pager page={shown.page} basePath="/app/places" params={{ edit: param(sp.edit) }} /></>
           ) : <p className="panel empty">Henüz yer yok. İlk yerini ekle; örneğin hem üreten hem satan merkez dükkânın.</p>}
         </div>
 

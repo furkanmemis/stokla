@@ -6,6 +6,8 @@ import { requirePlace } from "@/lib/session";
 import { productsAt } from "@/lib/queries";
 import { fits } from "@/lib/domain/places";
 import { num } from "@/lib/types";
+import { Pager } from "@/components/Pager";
+import { slicePage } from "@/lib/domain/paging";
 import { countPoolForm } from "../_actions/stock";
 
 export const metadata: Metadata = { title: "Ürün havuzu" };
@@ -25,6 +27,7 @@ export default async function PoolPage({ searchParams }: { searchParams: SearchP
   const items: PoolItem[] = shelf.map((p) => ({ ...p, pool: pool.get(p.id) ?? 0, shelf: target ? Number(p.stock) : 0 }));
   const inPool = items.filter((p) => p.pool > 0);
   const total = inPool.reduce((a, p) => a + p.pool, 0);
+  const poolPage = slicePage(inPool, param(sp.page), 20);
 
   return (
     <>
@@ -52,12 +55,12 @@ export default async function PoolPage({ searchParams }: { searchParams: SearchP
           </section>
         )}
 
-        <section className="panel" aria-labelledby="h-pool">
+        <section className="panel" id="pool" aria-labelledby="h-pool">
           <h2 id="h-pool">Havuzda ne var?</h2>
           <p className="lead" style={{ marginTop: 0 }}>Toplam {num(total)} ürün</p>
-          {inPool.length ? (
+          {inPool.length ? (<>
             <ul className="list">
-              {inPool.map((p) => (
+              {poolPage.items.map((p) => (
                 <li key={p.id} style={{ display: "block" }}>
                   {isAdmin ? (
                     <details className="edit">
@@ -78,6 +81,7 @@ export default async function PoolPage({ searchParams }: { searchParams: SearchP
                 </li>
               ))}
             </ul>
+            <Pager page={poolPage.page} basePath="/app/pool" hash="pool" /></>
           ) : <p className="empty">Havuz boş.</p>}
         </section>
       </div>

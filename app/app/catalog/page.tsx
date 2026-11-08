@@ -3,6 +3,8 @@ import { Alert, param, type SearchParams } from "@/components/Alert";
 import { requireMember } from "@/lib/session";
 import { INGREDIENT_UNITS, PRODUCT_UNITS, num, tl, type Ingredient, type Product, type RecipeItem } from "@/lib/types";
 import { OTHER_CATEGORY, categoriesOf } from "@/lib/domain/stock";
+import { slicePage } from "@/lib/domain/paging";
+import { Pager } from "@/components/Pager";
 import { loadSampleData, saveIngredient, saveProduct, saveRecipeItem, setProductActive } from "../_actions/catalog";
 
 export const metadata: Metadata = { title: "Ürünler ve tarifler" };
@@ -20,10 +22,15 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
   const recipe = (r ?? []) as RecipeItem[];
   const ing = new Map(ingredients.map((x) => [x.id, x]));
   const categories = categoriesOf(products);
+  // Pages run through the products in menu order; each page shows its slice grouped by category.
+  const byMenu = categories.length ? categories.flatMap((c) => products.filter((x) => (x.category ?? OTHER_CATEGORY) === c)) : products;
+  const productPage = slicePage(byMenu, param(sp.ppage), 20);
+  const ingredientPage = slicePage(ingredients, param(sp.gpage), 20);
+  const pageParams = { ppage: param(sp.ppage), gpage: param(sp.gpage) };
   const groups = (categories.length ? categories : [null]).map((c) => ({
     title: c,
-    items: c === null ? products : products.filter((x) => (x.category ?? OTHER_CATEGORY) === c),
-  }));
+    items: c === null ? productPage.items : productPage.items.filter((x) => (x.category ?? OTHER_CATEGORY) === c),
+  })).filter((g) => g.items.length);
 
   return (
     <>
@@ -42,14 +49,14 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
       )}
 
       <div className="row">
-        <section className="panel wide" aria-labelledby="h-products">
+        <section className="panel wide" id="products" aria-labelledby="h-products">
           <div className="panel-head"><h2 id="h-products">Ürünler</h2></div>
           <p className="lead" style={{ marginBottom: 6 }}>Satılan ürünler. Fiyatını, gramajını ve tarifini düzenlemek için ürüne dokun.</p>
           {!products.length && <p className="empty">Henüz ürün yok.</p>}
           <datalist id="categories">{categories.filter((c) => c !== OTHER_CATEGORY).map((c) => <option key={c} value={c} />)}</datalist>
           {groups.map((group) => (
           <div key={group.title ?? "all"}>
-          {group.title && <h3 style={{ margin: "18px 0 2px", fontSize: 14, color: "var(--muted)" }}>{group.title} ({group.items.length})</h3>}
+          {group.title && <h3 style={{ margin: "18px 0 2px", fontSize: 14, color: "var(--muted)" }}>{group.title}</h3>}
           <ul className="list">
             {group.items.map((x) => {
               const lines = recipe.filter((l) => l.product_id === x.id);
@@ -113,6 +120,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
           </ul>
           </div>
           ))}
+          <Pager page={productPage.page} basePath="/app/catalog" params={pageParams} param="ppage" hash="products" />
           <details className="edit" style={{ marginTop: 10, borderTop: "1px solid var(--sunken)", paddingTop: 14 }}>
             <summary><span className="btn small">Yeni ürün ekle</span></summary>
             <form action={saveProduct}>
@@ -127,7 +135,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
           <p className="lead" style={{ marginBottom: 6 }}>Tariflerde kullanılanlar. Bir yerde &quot;en az&quot; miktarın altına düşünce uyarı çıkar. Her yerin stoğu Stok ekranında.</p>
           {!ingredients.length && <p className="empty">Henüz malzeme yok.</p>}
           <ul className="list">
-            {ingredients.map((x) => (
+            {ingredientPage.items.map((x) => (
               <li key={x.id} style={{ display: "block" }}>
                 <details className="edit">
                   <summary style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -143,6 +151,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
               </li>
             ))}
           </ul>
+          <Pager page={ingredientPage.page} basePath="/app/catalog" params={pageParams} param="gpage" hash="ingredients" />
           <details className="edit" style={{ marginTop: 10, borderTop: "1px solid var(--sunken)", paddingTop: 14 }}>
             <summary><span className="btn small">Yeni malzeme ekle</span></summary>
             <form action={saveIngredient}>

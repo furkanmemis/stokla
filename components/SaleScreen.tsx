@@ -3,6 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { recordSale } from "@/app/app/_actions/stock";
 import { OTHER_CATEGORY, categoriesOf, stockLevel } from "@/lib/domain/stock";
+import { slicePage } from "@/lib/domain/paging";
+import { ClientPager } from "./Pager";
 import { tl, type Product, type Stocked } from "@/lib/types";
 import { Icon } from "./Icon";
 import { useToast } from "./useToast";
@@ -12,12 +14,15 @@ const SWATCHES = ["#F6E3BF", "#E6D3C6", "#F7D3DA", "#D7E8DD", "#EAD9C9", "#DCE6F
 const EDGE_TOP = "M0 12 L0 6 " + Array.from({ length: 30 }, (_, i) => `L${i * 10 + 10} ${i % 2 ? 6 : 0}`).join(" ") + " L300 12 Z";
 const EDGE_BOTTOM = "M0 0 L0 6 " + Array.from({ length: 30 }, (_, i) => `L${i * 10 + 10} ${i % 2 ? 6 : 12}`).join(" ") + " L300 0 Z";
 
+const TILES_PER_PAGE = 24;
+
 /** Counter screen: tap a product once per unit; the receipt collects them until saved. */
 export function SaleScreen({ products, placeId, picker }: { products: Stocked<Product>[]; placeId: string; picker?: React.ReactNode }) {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [waste, setWaste] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
+  const [pageNo, setPageNo] = useState(1);
   const categories = useMemo(() => categoriesOf(products), [products]);
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
@@ -29,6 +34,7 @@ export function SaleScreen({ products, placeId, picker }: { products: Stocked<Pr
     if (!category) return products;
     return products.filter((p) => (p.category ?? OTHER_CATEGORY) === category);
   }, [products, query, category]);
+  const shown = slicePage(visible, pageNo, TILES_PER_PAGE);
   const lines = products.filter((p) => cart[p.id]).map((p) => ({ p, qty: cart[p.id] }));
   const count = lines.reduce((a, l) => a + l.qty, 0);
   const total = lines.reduce((a, l) => a + l.qty * Number(l.p.price), 0);
@@ -76,21 +82,21 @@ export function SaleScreen({ products, placeId, picker }: { products: Stocked<Pr
           <label className="search">
             <Icon name="search" />
             <span className="sr-only">Ürün ara ya da barkod okut</span>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onSearchKey}
+            <input value={query} onChange={(e) => { setQuery(e.target.value); setPageNo(1); }} onKeyDown={onSearchKey}
               placeholder="Ürün ara ya da barkod okut" enterKeyHint="search" />
           </label>
           {categories.length > 1 && (
             <div className="cats" role="group" aria-label="Kategori">
-              <button type="button" aria-pressed={!category} onClick={() => setCategory(null)}>Tümü</button>
+              <button type="button" aria-pressed={!category} onClick={() => { setCategory(null); setPageNo(1); }}>Tümü</button>
               {categories.map((c) => (
-                <button key={c} type="button" aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>
+                <button key={c} type="button" aria-pressed={category === c} onClick={() => { setCategory(c); setPageNo(1); }}>{c}</button>
               ))}
             </div>
           )}
           <p className="lead">{waste ? "Atılan ya da bozulan ürüne dokun." : "Satılan ürüne dokun; her dokunuş bir adet."}</p>
           {!products.length && <p className="panel empty">Satışa açık ürün yok. Admin, &quot;Ürünler ve tarifler&quot; bölümünden ürün eklemeli.</p>}
           <div className="tiles">
-            {visible.map((p) => {
+            {shown.items.map((p) => {
               const inCart = cart[p.id] ?? 0;
               const left = Number(p.stock) - inCart;
               const level = p.made_to_order ? "ok" : stockLevel(left, Number(p.min_stock));
@@ -113,6 +119,7 @@ export function SaleScreen({ products, placeId, picker }: { products: Stocked<Pr
               );
             })}
           </div>
+          <ClientPager page={shown.page} onPage={setPageNo} />
         </div>
 
         <aside className={`receipt ${open ? "open" : ""}`} aria-label={waste ? "Fire fişi" : "Fiş"}>

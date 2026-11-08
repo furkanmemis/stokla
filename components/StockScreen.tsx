@@ -6,6 +6,8 @@ import { gaugePercent, stockLevel } from "@/lib/domain/stock";
 import { shortDay } from "@/lib/domain/dates";
 import { num, type Ingredient, type Product, type Role, type Stocked } from "@/lib/types";
 import { Icon } from "./Icon";
+import { ClientPager } from "./Pager";
+import { slicePage } from "@/lib/domain/paging";
 import { useToast } from "./useToast";
 
 type Item = { id: string; name: string; unit: string; stock: number; min: number; kind: "ingredient" | "product" };
@@ -38,6 +40,8 @@ export function StockScreen(props: {
   const [day, setDay] = useState(today);
   const [expires, setExpires] = useState("");
   const [note, setNote] = useState("");
+  const [pageNo, setPageNo] = useState(1);
+  const shown = slicePage(items, pageNo, 25);
   const [pending, start] = useTransition();
   const toast = useToast();
 
@@ -81,7 +85,7 @@ export function StockScreen(props: {
                   {view === "ingredients" && <th className="num hide-sm">Son giriş</th>}
                 </tr></thead>
                 <tbody>
-                  {items.map((it) => {
+                  {shown.items.map((it) => {
                     const level = stockLevel(it.stock, it.min);
                     return (
                       <tr key={it.id} className={`${canOpen ? "pick" : ""} ${selected?.id === it.id ? "selected" : ""}`} onClick={canOpen ? () => open(it) : undefined}>
@@ -98,6 +102,7 @@ export function StockScreen(props: {
                   })}
                 </tbody>
               </table>
+              <ClientPager page={shown.page} onPage={setPageNo} />
             </div>
           )}
         </div>

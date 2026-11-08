@@ -13,3 +13,9 @@ export function pageOf(requested: unknown, total: number, size: number): Page {
   const from = (page - 1) * size;
   return { page, pageCount, from, to: from + size - 1, hasPrev: page > 1, hasNext: page < pageCount };
 }
+
+/** One page of an already-loaded list, with the page info for a pager. */
+export function slicePage<T>(items: T[], requested: unknown, size: number): { items: T[]; page: Page } {
+  const page = pageOf(requested, items.length, size);
+  return { items: items.slice(page.from, page.to + 1), page };
+}

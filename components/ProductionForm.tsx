@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { recordProduction } from "@/app/app/_actions/stock";
 import { num, type Product, type Stocked } from "@/lib/types";
 import { useToast } from "./useToast";
+import { ClientPager } from "./Pager";
+import { slicePage } from "@/lib/domain/paging";
 
 type Draft = { qty: number; weight: string; expires: string };
 
@@ -15,6 +17,8 @@ export function ProductionForm({ products, withRecipe, today, placeId }: {
   const blank = (p: Product): Draft => ({ qty: 0, weight: p.weight_g ? String(p.weight_g) : "", expires: "" });
   const [day, setDay] = useState(today);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [pageNo, setPageNo] = useState(1);
+  const shown = slicePage(products, pageNo, 20);
   const [pending, start] = useTransition();
   const toast = useToast();
 
@@ -50,7 +54,7 @@ export function ProductionForm({ products, withRecipe, today, placeId }: {
       </div>
 
       <div className="panel">
-        {products.map((p) => {
+        {shown.items.map((p) => {
           const d = get(p);
           return (
             <div className="prod-row" key={p.id}>
@@ -78,6 +82,7 @@ export function ProductionForm({ products, withRecipe, today, placeId }: {
             </div>
           );
         })}
+        <ClientPager page={shown.page} onPage={setPageNo} />
       </div>
       <div className="savebar">
         <button type="button" className="btn go" disabled={!units || pending} onClick={save}>
