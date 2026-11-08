@@ -32,3 +32,9 @@ describe("emailProven", () => {
     expect(emailProven("otp")).toBe(false);
   });
 });
+
+describe("authMessage for undeliverable addresses", () => {
+  it("explains an address Supabase refused to e-mail", () => {
+    expect(authMessage({ code: "email_address_invalid", message: 'Email address "a@test.com" is invalid' }, "x")).toContain("gönderilemedi");
+  });
+});

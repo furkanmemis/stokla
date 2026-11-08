@@ -40,6 +40,9 @@ export function authMessage(error: { message?: string; code?: string } | null | 
   if (text.includes("user_already_exists") || text.includes("already registered")) return "Bu e-postayla zaten bir hesap var. Giriş yap ya da şifreni sıfırla.";
   if (text.includes("weak_password")) return "Bu şifre çok zayıf. Daha uzun ve tahmin edilmesi zor bir şifre seç.";
   if (text.includes("same_password")) return "Yeni şifre eskisiyle aynı olamaz.";
+  if (text.includes("email_address_invalid") || text.includes("is invalid")) {
+    return "Bu e-posta adresine e-posta gönderilemedi. Adresi kontrol et; çalışan eklerken Supabase'de e-posta doğrulaması kapalı olmalı.";
+  }
   if (text.includes("rate") || text.includes("too many")) return "Çok fazla deneme yapıldı. Birkaç dakika sonra tekrar dene.";
   return fallback;
 }
