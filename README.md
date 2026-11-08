@@ -9,15 +9,14 @@ Küçük işletmeler için **telefondan kullanılan, basit, rol odaklı stok tak
 
 | Rol | Ekranlar |
 |---|---|
-| **Patron** | Bugün (ciro, fire, azalan stok), Satış, Üretim, Malzeme, Ürünler ve tarifler, Ekip, Hareketler |
-| **Tezgâh** | Satış ve fire: ürüne dokun, kaydet |
-| **Mutfak** | Üretim (tarifteki malzemeler stoktan otomatik düşer) ve mal kabul |
-| **Depo** | Mal kabul ve sayım |
+| **Admin** | Genel bakış (saat saat satış, fire, azalan stok, son kullanma yaklaşanlar), Satış, Üretim, Stok (mal girişi ve sayım), Ürünler ve tarifler, Ekip, Hareketler |
+| **Çalışan** | Satış ve fire, Üretim (tarih, gramaj, son kullanma), Stok (mal girişi: alış tarihi ve son kullanma) |
 
-- Patron dükkânı açar, çalışanlara **6 haneli davet kodu** verir; her çalışan sadece kendi ekranlarını görür.
+- Admin dükkânı açar, çalışanlara **6 haneli davet kodu** verir.
 - Stok yalnızca hareketlerle değişir (satış, fire, üretim, mal girişi, sayım). Her hareket tek işlemde kaydedilir; stok ve geçmiş hiçbir zaman çelişmez.
+- Mal girişinde alış tarihi, üretimde üretim tarihi girilir (geçmiş bir gün olabilir); ikisinde de son kullanma tarihi isteğe bağlıdır. Üretimde her partinin gramajı kaydedilir.
 - Her dükkânın verisi veritabanı düzeyinde (RLS) diğerlerinden ayrıdır.
-- Boş bir dükkâna tek tıkla **örnek pastane verileri** yüklenebilir.
+- Panel telefona, tablete ve bilgisayara uyar.
 
 ## Teknoloji
 
@@ -28,7 +27,7 @@ Küçük işletmeler için **telefondan kullanılan, basit, rol odaklı stok tak
 ## Kurulum
 
 1. Supabase'de yeni proje aç (bölge: **Frankfurt / eu-central-1**).
-2. **SQL Editor**'de `supabase/schema.sql` dosyasının tamamını çalıştır (tekrar çalıştırmak güvenlidir).
+2. **SQL Editor**'de `supabase/schema.sql` dosyasının tamamını çalıştır. Tekrar çalıştırmak güvenlidir; şema değiştiğinde aynı dosyayı yeniden çalıştırmak yeterli.
 3. **Authentication → URL Configuration**: Site URL'yi sitenin adresi yap; Redirect URLs'e `https://ADRES/auth/callback` ekle (geliştirirken `http://localhost:3000/auth/callback`).
 4. `.env.example` dosyasını `.env.local` olarak kopyala; Supabase **Project URL** ve **publishable (anon) key** değerlerini yaz. Secret / service_role anahtarı hiçbir yere yazılmaz.
 5. `npm install` ve `npm run dev`.
@@ -53,9 +52,9 @@ psql -v ON_ERROR_STOP=1 -d stokla_test \
 app/                 pages (routes) and server actions
   _actions/auth.ts       login, sign-out, create / join a business
   app/_actions/          stock movements, catalog, team (one file per responsibility)
-  app/<screen>/          sales, production, ingredients, today, catalog, team, movements
-components/          client UI (sale grid, production form, ingredient list, tabs)
-lib/domain/          pure business rules + tests (no I/O)
+  app/<screen>/          overview, sales, production, stock, catalog, team, movements
+components/          client UI (sale screen with receipt, production form, stock screen, navigation)
+lib/domain/          pure business rules + tests (stock, dates; no I/O)
 lib/                 session, Supabase client, form helpers, types, sample bakery data
 supabase/            schema.sql (tables, RLS, stock functions) and SQL tests
 public/logo/         logo set

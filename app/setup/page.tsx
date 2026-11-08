@@ -15,50 +15,52 @@ export default async function SetupPage({ searchParams }: { searchParams: Search
   const sp = await searchParams;
 
   return (
-    <main className="wrap">
-      <p style={{ margin: "18px 0 22px" }}><Wordmark size={24} /></p>
-      <h1>Hoş geldin!</h1>
-      <p className="sub" style={{ marginLeft: 0 }}>Dükkânın sahibi misin, yoksa bir dükkânda mı çalışıyorsun?</p>
-      <Alert error={param(sp.error)} />
+    <main className="auth" style={{ alignItems: "start" }}>
+      <div style={{ width: "100%", maxWidth: 880, display: "flex", flexDirection: "column", gap: 18 }}>
+        <Wordmark size={24} />
+        <div className="page-head"><h1>Hoş geldin</h1></div>
+        <p className="lead">Dükkânın sahibi misin, yoksa bir dükkânda mı çalışıyorsun?</p>
+        <Alert error={param(sp.error)} />
+        <div className="row">
+          <form className="panel" action={createBusiness}>
+            <h2>Dükkânımı oluştur</h2>
+            <p className="lead" style={{ marginBottom: 14 }}>Admin olarak girersin; ürünleri ve ekibi sen eklersin.</p>
+            <div className="field">
+              <label htmlFor="name">Dükkânın adı</label>
+              <input className="input" id="name" name="name" required maxLength={80} placeholder="Örn. Gül Pastanesi" />
+            </div>
+            <div className="field">
+              <label htmlFor="sector">Ne iş yapıyorsun?</label>
+              <select className="input" id="sector" name="sector" defaultValue="bakery">
+                {Object.entries(SECTOR_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="owner">Senin adın</label>
+              <input className="input" id="owner" name="owner" required maxLength={60} autoComplete="given-name" placeholder="Ekipte görünecek ad" />
+            </div>
+            <button className="btn block" type="submit">Dükkânı oluştur</button>
+          </form>
 
-      <form className="card" action={createBusiness}>
-        <h3>Dükkânımı oluştur</h3>
-        <p className="hint" style={{ marginTop: 0 }}>Patron olarak girersin; ürünleri ve ekibi sen eklersin.</p>
-        <div className="field">
-          <label htmlFor="name">Dükkânın adı</label>
-          <input id="name" name="name" type="text" required maxLength={80} placeholder="Örn. Gül Pastanesi" />
+          <form className="panel" action={joinBusiness}>
+            <h2>Davet koduyla katıl</h2>
+            <p className="lead" style={{ marginBottom: 14 }}>Dükkânın admininden aldığın 6 haneli kodu yaz.</p>
+            <div className="field">
+              <label htmlFor="code">Davet kodu</label>
+              <input className="input" id="code" name="code" required maxLength={8} autoCapitalize="characters" autoComplete="off"
+                placeholder="K7M2QX" style={{ textTransform: "uppercase", letterSpacing: ".18em", fontWeight: 800 }} />
+            </div>
+            <div className="field">
+              <label htmlFor="jname">Senin adın</label>
+              <input className="input" id="jname" name="name" required maxLength={60} autoComplete="given-name" />
+            </div>
+            <button className="btn dark block" type="submit">Katıl</button>
+          </form>
         </div>
-        <div className="field">
-          <label htmlFor="sector">Ne iş yapıyorsun?</label>
-          <select id="sector" name="sector" defaultValue="bakery">
-            {Object.entries(SECTOR_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="owner">Senin adın</label>
-          <input id="owner" name="owner" type="text" required maxLength={60} autoComplete="given-name" placeholder="Ekipte görünecek ad" />
-        </div>
-        <button className="btn block" type="submit">Dükkânı oluştur</button>
-      </form>
-
-      <form className="card" action={joinBusiness}>
-        <h3>Davet koduyla katıl</h3>
-        <p className="hint" style={{ marginTop: 0 }}>Patronun sana verdiği 6 haneli kodu yaz.</p>
-        <div className="field">
-          <label htmlFor="code">Davet kodu</label>
-          <input id="code" name="code" type="text" required maxLength={8} autoCapitalize="characters" autoComplete="off"
-            placeholder="ÖRN. K7M2QX" style={{ textTransform: "uppercase", letterSpacing: ".15em", fontWeight: 700 }} />
-        </div>
-        <div className="field">
-          <label htmlFor="jname">Senin adın</label>
-          <input id="jname" name="name" type="text" required maxLength={60} autoComplete="given-name" />
-        </div>
-        <button className="btn dark block" type="submit">Katıl</button>
-      </form>
-
-      <form action={signOut} style={{ textAlign: "center" }}>
-        <button className="hint" type="submit" style={{ textDecoration: "underline" }}>{s.email ?? "Hesap"} · çıkış yap</button>
-      </form>
+        <form action={signOut}>
+          <button className="btn small secondary" type="submit">{s.email ?? "Hesap"} hesabından çık</button>
+        </form>
+      </div>
     </main>
   );
 }

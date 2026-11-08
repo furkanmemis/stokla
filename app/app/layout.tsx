@@ -1,22 +1,29 @@
+import Link from "next/link";
 import { Mark } from "@/components/Logo";
-import { Tabs } from "@/components/Tabs";
+import { Nav } from "@/components/Nav";
 import { requireMember } from "@/lib/session";
-import { ROLE_LABEL, ROLE_TABS } from "@/lib/types";
+import { ROLE_LABEL, ROLE_NAV } from "@/lib/types";
 import { signOut } from "../_actions/auth";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { member, business } = await requireMember();
+  const initial = member.name.trim().charAt(0).toLocaleUpperCase("tr-TR") || "?";
   return (
-    <>
-      <header className="top">
-        <div className="top-in">
-          <Mark size={30} />
-          <span className="shop">{business.name}<small>{member.name} · {ROLE_LABEL[member.role]}</small></span>
-          <form action={signOut}><button className="chip" type="submit">Çıkış</button></form>
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="sidebar-top">
+          <Link href="/app" className="brand"><Mark size={30} />Stokla</Link>
+          <span className="shop-name">{business.name}</span>
+          <form action={signOut} className="signout-top"><button className="signout" type="submit">Çıkış</button></form>
         </div>
-      </header>
-      <Tabs tabs={ROLE_TABS[member.role]} />
-      {children}
-    </>
+        <Nav items={ROLE_NAV[member.role]} />
+        <div className="me">
+          <span className={`avatar ${member.role}`} aria-hidden="true">{initial}</span>
+          <span className="me-text"><b>{member.name}</b><span>{ROLE_LABEL[member.role]}</span></span>
+          <form action={signOut}><button className="signout" type="submit">Çıkış</button></form>
+        </div>
+      </aside>
+      <main className="content">{children}</main>
+    </div>
   );
 }

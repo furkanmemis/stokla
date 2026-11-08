@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
-import { ROLE_TABS, type Business, type Member, type Role } from "./types";
+import { ROLE_NAV, type Business, type Member, type Role } from "./types";
 
 /**
  * The signed-in user, their membership and business (nulls when missing).
@@ -30,6 +30,6 @@ export async function requireMember(allowed?: Role[]) {
   const s = await getSession();
   if (!s.userId) redirect("/login");
   if (!s.member || !s.business) redirect("/setup");
-  if (allowed && !allowed.includes(s.member.role)) redirect(ROLE_TABS[s.member.role][0].href);
+  if (allowed && !allowed.includes(s.member.role)) redirect(ROLE_NAV[s.member.role][0].href);
   return { supabase: s.supabase, userId: s.userId, member: s.member, business: s.business };
 }

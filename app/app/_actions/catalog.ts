@@ -13,13 +13,14 @@ const UNIQUE_VIOLATION = "23505";
 
 const isOneOf = <T extends string>(list: readonly T[], v: string): v is T => (list as readonly string[]).includes(v);
 const nonNegative = (v: number) => (v >= 0 ? v : 0);
+const grams = (v: number) => (v >= 1 && v <= 100_000 ? Math.round(v) : null);
 
 function refresh() {
   revalidatePath("/app", "layout");
 }
 
 export async function saveProduct(fd: FormData) {
-  const { supabase, business } = await requireMember(["owner"]);
+  const { supabase, business } = await requireMember(["admin"]);
   const id = text(fd, "id", 40);
   const name = text(fd, "name", 60);
   const unit = text(fd, "unit", 20);
@@ -35,6 +36,7 @@ export async function saveProduct(fd: FormData) {
     emoji: text(fd, "emoji", 16) || null,
     min_stock: nonNegative(decimal(fd, "min_stock")),
     barcode: text(fd, "barcode", 32).replace(/\s/g, "") || null,
+    weight_g: grams(decimal(fd, "weight_g")),
   };
   const { error } = id
     ? await supabase.from("products").update(row).eq("id", id)
@@ -45,24 +47,14 @@ export async function saveProduct(fd: FormData) {
 }
 
 export async function setProductActive(fd: FormData) {
-  const { supabase } = await requireMember(["owner"]);
+  const { supabase } = await requireMember(["admin"]);
   const { error } = await supabase.from("products").update({ active: text(fd, "active") === "1" }).eq("id", text(fd, "id", 40));
   if (error) redirectWith(PAGE, "error", "Ürün güncellenemedi.");
   refresh();
 }
 
-export async function countProduct(fd: FormData) {
-  const { supabase } = await requireMember(["owner"]);
-  const counted = decimal(fd, "counted");
-  if (!(counted >= 0)) redirectWith(PAGE, "error", "Sayılan adedi yaz.");
-  const { error } = await supabase.rpc("count_product", { p_product: text(fd, "id", 40), p_counted: counted });
-  if (error) redirectWith(PAGE, "error", dbMessage(error, "Sayım kaydedilemedi."));
-  refresh();
-  redirectWith(PAGE, "ok", "Vitrin sayımı kaydedildi.");
-}
-
 export async function saveIngredient(fd: FormData) {
-  const { supabase, business } = await requireMember(["owner"]);
+  const { supabase, business } = await requireMember(["admin"]);
   const back = `${PAGE}#ingredients`;
   const id = text(fd, "id", 40);
   const name = text(fd, "name", 60);
@@ -81,7 +73,7 @@ export async function saveIngredient(fd: FormData) {
 
 /** Adds or changes one ingredient line of a product's recipe; an amount of 0 removes it. */
 export async function saveRecipeItem(fd: FormData) {
-  const { supabase } = await requireMember(["owner"]);
+  const { supabase } = await requireMember(["admin"]);
   const product_id = text(fd, "product_id", 40);
   const ingredient_id = text(fd, "ingredient_id", 40);
   const qty = decimal(fd, "qty");
@@ -96,7 +88,7 @@ export async function saveRecipeItem(fd: FormData) {
 
 /** Fills an empty business with a sample bakery so the owner can try every screen right away. */
 export async function loadSampleData() {
-  const { supabase, business } = await requireMember(["owner"]);
+  const { supabase, business } = await requireMember(["admin"]);
   const [{ count: products }, { count: ingredients }] = await Promise.all([
     supabase.from("products").select("id", { count: "exact", head: true }),
     supabase.from("ingredients").select("id", { count: "exact", head: true }),

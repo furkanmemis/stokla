@@ -5,10 +5,10 @@
 begin;
 
 insert into auth.users (id, email) values
-  ('00000000-0000-0000-0000-00000000000a', 'owner-a@test'),
-  ('00000000-0000-0000-0000-00000000000b', 'owner-b@test'),
-  ('00000000-0000-0000-0000-0000000000c1', 'counter-a@test'),
-  ('00000000-0000-0000-0000-0000000000c2', 'kitchen-a@test');
+  ('00000000-0000-0000-0000-00000000000a', 'admin-a@test'),
+  ('00000000-0000-0000-0000-00000000000b', 'admin-b@test'),
+  ('00000000-0000-0000-0000-0000000000e1', 'employee-a@test'),
+  ('00000000-0000-0000-0000-0000000000e2', 'late-joiner@test');
 
 create function pg_temp.act_as(uid text) returns void language sql as $$
   select set_config('request.jwt.claim.sub', uid, true), set_config('role', 'authenticated', true)
@@ -23,16 +23,16 @@ exception when others then
 end $$;
 grant execute on function pg_temp.act_as(text), pg_temp.check(boolean, text), pg_temp.fails(text, text) to authenticated;
 
--- ---------- owner A sets up a bakery
+-- ---------- admin A sets up a bakery
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select public.create_business('Gül Pastanesi', 'bakery', 'Ayşe') as biz_a \gset
-select pg_temp.check(public.my_role() = 'owner', 'creator becomes owner');
+select pg_temp.check(public.my_role() = 'admin', 'creator becomes admin');
 select pg_temp.check(pg_temp.fails($$select public.create_business('İkinci', 'bakery', 'Ayşe')$$, 'Zaten'), 'one business per user');
 
 insert into ingredients (business_id, name, unit, stock, min_stock) values
   (:'biz_a', 'Un', 'kg', 1, 2), (:'biz_a', 'Yumurta', 'adet', 10, 5);
-insert into products (business_id, name, unit, price, stock, min_stock) values
-  (:'biz_a', 'Poğaça', 'adet', 25, 3, 1);
+insert into products (business_id, name, unit, price, stock, min_stock, weight_g) values
+  (:'biz_a', 'Poğaça', 'adet', 25, 3, 1, 80);
 select id as pogaca from products where name = 'Poğaça' \gset
 select id as un from ingredients where name = 'Un' \gset
 select id as yumurta from ingredients where name = 'Yumurta' \gset
@@ -42,54 +42,77 @@ select pg_temp.check(pg_temp.fails(format($$update products set stock = 999 wher
   'stock column cannot be edited directly');
 
 -- ---------- invites
-select public.create_invite('counter') as code_counter \gset
-select public.create_invite('kitchen') as code_kitchen \gset
-select pg_temp.check(:'code_counter' ~ '^[A-Z2-9]{6}$', 'invite code has 6 unambiguous characters');
+select public.create_invite() as code1 \gset
+select public.create_invite() as code2 \gset
+select pg_temp.check(:'code1' ~ '^[A-Z2-9]{6}$', 'invite code has 6 unambiguous characters');
+select pg_temp.check((select role from invites where code = :'code1') = 'employee', 'invites always make employees');
 
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
-select public.accept_invite(lower(:'code_counter'), 'Mehmet');
-select pg_temp.check(public.my_role() = 'counter', 'invite gives its role (code is case-insensitive)');
-select pg_temp.check(pg_temp.fails(format($$select public.accept_invite(%L, 'x')$$, :'code_counter'), 'Zaten'), 'member cannot join twice');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000e1');
+select public.accept_invite(lower(:'code1'), 'Mehmet');
+select pg_temp.check(public.my_role() = 'employee', 'invite gives the employee role (code is case-insensitive)');
+select pg_temp.check(pg_temp.fails($$select public.create_invite()$$, 'yönetici'), 'employee cannot invite');
+select pg_temp.check(pg_temp.fails(format($$select public.accept_invite(%L, 'x')$$, :'code2'), 'Zaten'), 'member cannot join twice');
 
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000c2');
-select pg_temp.check(pg_temp.fails(format($$select public.accept_invite(%L, 'x')$$, :'code_counter'), 'geçersiz'), 'used invite cannot be reused');
-select public.accept_invite(:'code_kitchen', 'Zeynep');
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000e2');
+select pg_temp.check(pg_temp.fails(format($$select public.accept_invite(%L, 'x')$$, :'code1'), 'geçersiz'), 'used invite cannot be reused');
 
--- ---------- sales (counter)
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000c1');
+-- ---------- employee: sales, production, goods received
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000e1');
 select public.record_sale(jsonb_build_array(jsonb_build_object('id', :'pogaca', 'qty', 2)), false);
 select pg_temp.check((select stock from products where id = :'pogaca') = 1, 'sale lowers stock');
 select pg_temp.check((select total from movements where kind = 'sale') = 50, 'sale total uses price');
 select pg_temp.check(pg_temp.fails(format($$select public.record_sale('[{"id":"%s","qty":5}]'::jsonb, false)$$, :'pogaca'), 'Yeterli'),
   'cannot sell more than in stock');
 select pg_temp.check((select stock from products where id = :'pogaca') = 1, 'failed sale changes nothing');
-select pg_temp.check(pg_temp.fails($$select public.record_production('[]'::jsonb)$$, 'yetkin'), 'counter cannot record production');
-select pg_temp.check(pg_temp.fails(format($$select public.count_ingredient(%L, 5)$$, :'un'), 'yetkin'), 'counter cannot count ingredients');
 
--- ---------- production (kitchen)
-select pg_temp.act_as('00000000-0000-0000-0000-0000000000c2');
 select pg_temp.check(pg_temp.fails(format($$select public.record_production('[{"id":"%s","qty":8}]'::jsonb)$$, :'pogaca'), 'Yetersiz malzeme'),
   'production needs enough ingredients (8 x 0.25 kg > 1 kg flour)');
-select public.record_production(jsonb_build_array(jsonb_build_object('id', :'pogaca', 'qty', 4)));
+select pg_temp.check(pg_temp.fails(format($$select public.record_production('[{"id":"%s","qty":1}]'::jsonb, today_tr() + 1)$$, :'pogaca'), 'Gelecek'),
+  'production date cannot be in the future');
+select pg_temp.check(pg_temp.fails(format($$select public.record_production('[{"id":"%s","qty":1,"expires_on":"%s"}]'::jsonb, today_tr())$$,
+  :'pogaca', current_date - 10), 'önce olamaz'), 'expiry cannot be before the production day');
+select pg_temp.check(pg_temp.fails(format($$select public.record_production('[{"id":"%s","qty":1,"weight_g":0}]'::jsonb)$$, :'pogaca'), 'Gramaj'),
+  'weight must be positive');
+
+select public.record_production(jsonb_build_array(jsonb_build_object('id', :'pogaca', 'qty', 4, 'expires_on', public.today_tr() + 2)),
+  public.today_tr() - 1) as prod_mov \gset
 select pg_temp.check((select stock from products where id = :'pogaca') = 5, 'production adds products');
 select pg_temp.check((select stock from ingredients where id = :'un') = 0, 'production uses flour by recipe');
 select pg_temp.check((select stock from ingredients where id = :'yumurta') = 6, 'production uses eggs by recipe');
-select public.receive_ingredient(:'un', 25, 'Toptancı');
-select pg_temp.check((select stock from ingredients where id = :'un') = 25, 'goods received adds stock');
+select pg_temp.check((select occurred_on from movements where id = :'prod_mov') = public.today_tr() - 1, 'production keeps the entered day');
+select pg_temp.check((select weight_g from movement_lines where movement_id = :'prod_mov' and product_id is not null) = 80,
+  'production weight defaults to the product standard');
 
--- ---------- owner: count + history
+select public.receive_ingredient(:'un', 25, 'Toptancı', public.today_tr() - 2, public.today_tr() + 1) as rec \gset
+select pg_temp.check((select stock from ingredients where id = :'un') = 25, 'goods received adds stock');
+select pg_temp.check((select occurred_on from movements where id = :'rec') = public.today_tr() - 2, 'receipt keeps the purchase day');
+select pg_temp.check((select expires_on from movement_lines where movement_id = :'rec') = public.today_tr() + 1, 'receipt keeps the expiry');
+select public.record_production(jsonb_build_array(jsonb_build_object('id', :'pogaca', 'qty', 0.5, 'weight_g', 95))) as prod2 \gset
+select pg_temp.check((select weight_g from movement_lines where movement_id = :'prod2' and product_id is not null) = 95,
+  'production can record a different batch weight');
+select pg_temp.check((select stock from ingredients where id = :'un') = 24.875, 'second batch uses flour from the new delivery');
+select pg_temp.check(pg_temp.fails(format($$select public.receive_ingredient(%L, 1, null, today_tr() - 400)$$, :'un'), 'bir yıldan'),
+  'purchase day at most a year back');
+select pg_temp.check((select count(*) from public.expiring_batches(3)) = 2, 'expiring batches lists receipt and production');
+
+select pg_temp.check(pg_temp.fails(format($$select public.count_ingredient(%L, 5)$$, :'un'), 'yetkin'), 'employee cannot count stock');
+select pg_temp.check(pg_temp.fails(format($$update products set price = 1 where id = %L$$, :'pogaca'), null) or
+  (select price from products where id = :'pogaca') = 25, 'employee cannot change prices');
+
+-- ---------- admin: count + history
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select public.count_ingredient(:'yumurta', 4);
 select pg_temp.check((select qty from movement_lines l join movements m on m.id = l.movement_id
-  where m.kind = 'count' and l.ingredient_id = :'yumurta') = -2, 'count stores the difference');
-select pg_temp.check((select count(*) from movements) = 4, 'every change wrote one movement');
+  where m.kind = 'count' and l.ingredient_id = :'yumurta') = -1.5, 'count stores the difference');
+select pg_temp.check((select count(*) from movements) = 5, 'every change wrote one movement');
 
--- ---------- isolation: owner B sees nothing of A
+-- ---------- isolation: admin B sees nothing of A
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');
 select public.create_business('Kitapevi', 'bookstore', 'Can') as biz_b \gset
 select pg_temp.check((select count(*) from products) = 0, 'other business products are invisible');
 select pg_temp.check((select count(*) from movements) = 0, 'other business movements are invisible');
 select pg_temp.check((select count(*) from members) = 1, 'other business team is invisible');
+select pg_temp.check((select count(*) from public.expiring_batches(30)) = 0, 'other business batches are invisible');
 select pg_temp.check(pg_temp.fails(format($$select public.record_sale('[{"id":"%s","qty":1}]'::jsonb, false)$$, :'pogaca'), 'bulunamadı'),
   'cannot sell another business''s product');
 select pg_temp.check(pg_temp.fails(format($$insert into products (business_id, name) values (%L, 'x')$$, :'biz_a'), 'row-level security'),
