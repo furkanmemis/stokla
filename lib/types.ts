@@ -9,6 +9,7 @@ export type Ingredient = { id: string; business_id: string; name: string; unit: 
 export type Product = {
   id: string; business_id: string; name: string; emoji: string | null; unit: string; price: number;
   stock: number; min_stock: number; barcode: string | null; active: boolean; sort: number; weight_g: number | null;
+  category: string | null; made_to_order: boolean;
 };
 export type RecipeItem = { product_id: string; ingredient_id: string; qty: number };
 export type Movement = {

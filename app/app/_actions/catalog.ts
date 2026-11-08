@@ -37,6 +37,8 @@ export async function saveProduct(fd: FormData) {
     min_stock: nonNegative(decimal(fd, "min_stock")),
     barcode: text(fd, "barcode", 32).replace(/\s/g, "") || null,
     weight_g: grams(decimal(fd, "weight_g")),
+    category: text(fd, "category", 40) || null,
+    made_to_order: fd.get("made_to_order") === "on",
   };
   const { error } = id
     ? await supabase.from("products").update(row).eq("id", id)

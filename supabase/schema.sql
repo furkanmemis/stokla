@@ -81,6 +81,10 @@ create table if not exists public.products (
 create unique index if not exists products_barcode_idx on public.products (business_id, barcode) where barcode is not null;
 -- Standard weight of one unit in grams (e.g. 80 for a poğaça); production can record a different one per batch.
 alter table public.products add column if not exists weight_g int check (weight_g is null or weight_g between 1 and 100000);
+-- Menu section shown as a filter on the sales screen (e.g. "Sıcak Kahveler").
+alter table public.products add column if not exists category text check (category is null or length(trim(category)) between 1 and 40);
+-- Made to order (coffee, tea…): no shelf stock; a sale uses up the recipe's ingredients instead.
+alter table public.products add column if not exists made_to_order boolean not null default false;
 
 -- How much of each ingredient one unit of a product uses.
 create table if not exists public.recipe_items (
@@ -226,7 +230,7 @@ create policy "admin edits products" on public.products
   with check (business_id = public.my_business());
 revoke update, delete on public.products from authenticated;
 grant select, insert on public.products to authenticated;
-grant update (name, emoji, unit, price, min_stock, barcode, attrs, active, sort, weight_g) on public.products to authenticated;
+grant update (name, emoji, unit, price, min_stock, barcode, attrs, active, sort, weight_g, category, made_to_order) on public.products to authenticated;
 
 drop policy if exists "members read recipes" on public.recipe_items;
 create policy "members read recipes" on public.recipe_items
@@ -305,6 +309,7 @@ declare
   v_biz uuid := my_business();
   v_mov uuid;
   v_total numeric := 0;
+  v_short text;
   r record;
 begin
   if my_role() not in ('admin', 'employee') then raise exception 'Bu işlem için yetkin yok.'; end if;
@@ -312,22 +317,38 @@ begin
   insert into movements (business_id, kind, created_by, created_by_name)
     values (v_biz, case when p_waste then 'waste' else 'sale' end, auth.uid(), my_name()) returning id into v_mov;
   for r in
-    select p.id, p.name, p.price, p.stock, sum(x.qty) as qty
+    select p.id, p.name, p.price, p.made_to_order, sum(x.qty) as qty
     from jsonb_to_recordset(p_items) as x(id uuid, qty numeric)
     join products p on p.id = x.id and p.business_id = v_biz and p.active
     group by p.id
     order by p.id
   loop
     if r.qty <= 0 then raise exception 'Adet sıfırdan büyük olmalı.'; end if;
-    perform 1 from products where id = r.id for update;
-    if (select stock from products where id = r.id) < r.qty then
-      raise exception 'Yeterli % yok (kalan: %).', r.name, (select stock from products where id = r.id);
+    if r.made_to_order then
+      -- made to order: the recipe's ingredients leave the stock, the product itself has none
+      perform 1 from ingredients where id in (select ingredient_id from recipe_items where product_id = r.id) order by id for update;
+      select string_agg(format('%s (%s %s lazım, %s var)', i.name, round(ri.qty * r.qty, 3), i.unit, round(i.stock, 3)), ', ')
+        into v_short
+        from recipe_items ri join ingredients i on i.id = ri.ingredient_id
+        where ri.product_id = r.id and i.stock < ri.qty * r.qty;
+      if v_short is not null then raise exception '% için yetersiz malzeme: %', r.name, v_short; end if;
+      update ingredients i set stock = i.stock - ri.qty * r.qty
+        from recipe_items ri where ri.product_id = r.id and i.id = ri.ingredient_id;
+      insert into movement_lines (movement_id, ingredient_id, qty)
+        select v_mov, ri.ingredient_id, -ri.qty * r.qty from recipe_items ri where ri.product_id = r.id;
+    else
+      perform 1 from products where id = r.id for update;
+      if (select stock from products where id = r.id) < r.qty then
+        raise exception 'Yeterli % yok (kalan: %).', r.name, (select stock from products where id = r.id);
+      end if;
+      update products set stock = stock - r.qty where id = r.id;
     end if;
-    update products set stock = stock - r.qty where id = r.id;
     insert into movement_lines (movement_id, product_id, qty, unit_price) values (v_mov, r.id, -r.qty, r.price);
     v_total := v_total + r.qty * r.price;
   end loop;
-  if not exists (select 1 from movement_lines where movement_id = v_mov) then raise exception 'Ürün bulunamadı.'; end if;
+  if not exists (select 1 from movement_lines where movement_id = v_mov and product_id is not null) then
+    raise exception 'Ürün bulunamadı.';
+  end if;
   update movements set total = v_total where id = v_mov;
   return v_mov;
 end $$;
@@ -357,6 +378,9 @@ begin
     group by p.id;
   if not exists (select 1 from _prod) then raise exception 'Ürün bulunamadı.'; end if;
   if exists (select 1 from _prod where qty <= 0) then raise exception 'Adet sıfırdan büyük olmalı.'; end if;
+  if exists (select 1 from _prod join products p on p.id = _prod.id where p.made_to_order) then
+    raise exception 'Siparişle hazırlanan ürünler üretime girilmez; satışta malzemeleri düşer.';
+  end if;
   if exists (select 1 from _prod where weight_g is not null and weight_g not between 1 and 100000) then
     raise exception 'Gramaj 1 ile 100.000 g arasında olmalı.';
   end if;

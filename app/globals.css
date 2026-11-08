@@ -163,6 +163,10 @@ table.data button.rowbtn:focus-visible { outline: 3px solid var(--brand); outlin
 .low-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) auto; align-items: center; gap: 14px; }
 
 /* ---------- sales ---------- */
+.cats { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.cats::-webkit-scrollbar { display: none; }
+.cats button { flex-shrink: 0; border: 1px solid var(--line); background: var(--surface); padding: 9px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; white-space: nowrap; }
+.cats button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
 .sell { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
 .sell .catalog-col { flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }

@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Üretim" };
 export default async function ProductionPage() {
   const { supabase } = await requireMember(["admin", "employee"]);
   const [{ data: products }, { data: recipe }] = await Promise.all([
-    supabase.from("products").select("*").eq("active", true).order("sort").order("name"),
+    supabase.from("products").select("*").eq("active", true).eq("made_to_order", false).order("sort").order("name"),
     supabase.from("recipe_items").select("product_id"),
   ]);
   const withRecipe = [...new Set(((recipe ?? []) as Pick<RecipeItem, "product_id">[]).map((r) => r.product_id))];

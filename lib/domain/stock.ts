@@ -50,6 +50,18 @@ export function sanitizeProductionLines(input: unknown): ProductionLine[] {
 
 export type StockLevel = "ok" | "low" | "out";
 
+/** Menu sections in first-seen order, for the category filter. Products without one come last as "Diğer". */
+export function categoriesOf(products: { category: string | null }[]): string[] {
+  const seen: string[] = [];
+  let other = false;
+  for (const p of products) {
+    if (!p.category) other = true;
+    else if (!seen.includes(p.category)) seen.push(p.category);
+  }
+  return other && seen.length ? [...seen, OTHER_CATEGORY] : seen;
+}
+export const OTHER_CATEGORY = "Diğer";
+
 /** Where an item stands against its minimum. */
 export function stockLevel(stock: number, min: number): StockLevel {
   if (stock <= 0) return "out";
@@ -123,6 +135,6 @@ export function summarizeDay(input: {
     lowIngredients: ingredients
       .filter((g) => g.active && stockLevel(Number(g.stock), Number(g.min_stock)) !== "ok")
       .sort((a, b) => Number(a.stock) / (Number(a.min_stock) || 1) - Number(b.stock) / (Number(b.min_stock) || 1)),
-    lowProducts: products.filter((p) => p.active && stockLevel(Number(p.stock), Number(p.min_stock)) !== "ok"),
+    lowProducts: products.filter((p) => p.active && !p.made_to_order && stockLevel(Number(p.stock), Number(p.min_stock)) !== "ok"),
   };
 }

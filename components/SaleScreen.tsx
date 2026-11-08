@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { recordSale } from "@/app/app/_actions/stock";
-import { stockLevel } from "@/lib/domain/stock";
+import { OTHER_CATEGORY, categoriesOf, stockLevel } from "@/lib/domain/stock";
 import { tl, type Product } from "@/lib/types";
 import { Icon } from "./Icon";
 import { useToast } from "./useToast";
@@ -17,22 +17,25 @@ export function SaleScreen({ products }: { products: Product[] }) {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [waste, setWaste] = useState(false);
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<string | null>(null);
+  const categories = useMemo(() => categoriesOf(products), [products]);
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const toast = useToast();
 
   const visible = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr-TR");
-    if (!q) return products;
-    return products.filter((p) => p.name.toLocaleLowerCase("tr-TR").includes(q) || p.barcode === q);
-  }, [products, query]);
+    if (q) return products.filter((p) => p.name.toLocaleLowerCase("tr-TR").includes(q) || p.barcode === q);
+    if (!category) return products;
+    return products.filter((p) => (p.category ?? OTHER_CATEGORY) === category);
+  }, [products, query, category]);
   const lines = products.filter((p) => cart[p.id]).map((p) => ({ p, qty: cart[p.id] }));
   const count = lines.reduce((a, l) => a + l.qty, 0);
   const total = lines.reduce((a, l) => a + l.qty * Number(l.p.price), 0);
 
   function add(p: Product) {
     const next = (cart[p.id] ?? 0) + 1;
-    if (next > Number(p.stock)) { toast.show(`Vitrinde ${p.name} kalmadı.`, true); return; }
+    if (!p.made_to_order && next > Number(p.stock)) { toast.show(`Vitrinde ${p.name} kalmadı.`, true); return; }
     setCart({ ...cart, [p.id]: next });
     navigator.vibrate?.(12);
   }
@@ -76,25 +79,35 @@ export function SaleScreen({ products }: { products: Product[] }) {
             <input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onSearchKey}
               placeholder="Ürün ara ya da barkod okut" enterKeyHint="search" />
           </label>
+          {categories.length > 1 && (
+            <div className="cats" role="group" aria-label="Kategori">
+              <button type="button" aria-pressed={!category} onClick={() => setCategory(null)}>Tümü</button>
+              {categories.map((c) => (
+                <button key={c} type="button" aria-pressed={category === c} onClick={() => setCategory(c)}>{c}</button>
+              ))}
+            </div>
+          )}
           <p className="lead">{waste ? "Atılan ya da bozulan ürüne dokun." : "Satılan ürüne dokun; her dokunuş bir adet."}</p>
           {!products.length && <p className="panel empty">Satışa açık ürün yok. Admin, &quot;Ürünler ve tarifler&quot; bölümünden ürün eklemeli.</p>}
           <div className="tiles">
             {visible.map((p) => {
               const inCart = cart[p.id] ?? 0;
               const left = Number(p.stock) - inCart;
-              const level = stockLevel(left, Number(p.min_stock));
+              const level = p.made_to_order ? "ok" : stockLevel(left, Number(p.min_stock));
               return (
                 <button key={p.id} type="button" onClick={() => add(p)}
-                  className={`tile ${inCart ? "in" : ""} ${waste ? "waste" : ""} ${Number(p.stock) <= 0 ? "out" : ""}`}
+                  className={`tile ${inCart ? "in" : ""} ${waste ? "waste" : ""} ${!p.made_to_order && Number(p.stock) <= 0 ? "out" : ""}`}
                   aria-label={`${p.name}, ${tl(Number(p.price))}${inCart ? `, fişte ${inCart}` : ""}`}>
-                  <span className="swatch" style={{ background: SWATCHES[p.sort % SWATCHES.length] }}>
+                  <span className="swatch" style={{ background: SWATCHES[(p.category ? categories.indexOf(p.category) : p.sort) % SWATCHES.length] }}>
                     <span>{p.weight_g ? `${p.weight_g} g` : p.unit}</span>
                     {inCart > 0 && <span className="count">{inCart}</span>}
                   </span>
                   <span className="name">{p.name}</span>
                   <span className="foot">
                     <span className="price">{tl(Number(p.price))}</span>
-                    <span className={`left c-${level === "ok" ? "" : level}`}>{left <= 0 ? "Bitti" : `Vitrinde ${Number(left.toFixed(2))}`}</span>
+                    <span className={`left c-${level === "ok" ? "" : level}`}>
+                      {p.made_to_order ? "Siparişle" : left <= 0 ? "Bitti" : `Vitrinde ${Number(left.toFixed(2))}`}
+                    </span>
                   </span>
                 </button>
               );

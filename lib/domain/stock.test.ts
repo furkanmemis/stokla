@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_QTY, gaugePercent, sanitizeLines, sanitizeProductionLines, stockLevel, summarizeDay } from "./stock";
+import { MAX_QTY, OTHER_CATEGORY, categoriesOf, gaugePercent, sanitizeLines, sanitizeProductionLines, stockLevel, summarizeDay } from "./stock";
 import type { Ingredient, Product } from "../types";
 
 const A = "11111111-1111-4111-8111-111111111111";
@@ -37,6 +37,15 @@ describe("sanitizeProductionLines", () => {
   });
 });
 
+describe("categoriesOf", () => {
+  it("keeps first-seen order and puts uncategorized last", () => {
+    expect(categoriesOf([{ category: "Kahve" }, { category: null }, { category: "Tatlı" }, { category: "Kahve" }])).toEqual(["Kahve", "Tatlı", OTHER_CATEGORY]);
+  });
+  it("needs no filter when nothing is categorized", () => {
+    expect(categoriesOf([{ category: null }])).toEqual([]);
+  });
+});
+
 describe("stockLevel and gaugePercent", () => {
   it("classifies against the minimum", () => {
     expect(stockLevel(0, 5)).toBe("out");
@@ -53,7 +62,7 @@ describe("stockLevel and gaugePercent", () => {
 describe("summarizeDay", () => {
   const product = (id: string, stock: number, min: number): Product => ({
     id, business_id: "b", name: id, emoji: null, unit: "adet", price: 10, stock, min_stock: min,
-    barcode: null, active: true, sort: 0, weight_g: null,
+    barcode: null, active: true, sort: 0, weight_g: null, category: null, made_to_order: false,
   });
   const ingredient = (id: string, stock: number, min: number, active = true): Ingredient => ({
     id, business_id: "b", name: id, unit: "kg", stock, min_stock: min, active,
@@ -73,7 +82,7 @@ describe("summarizeDay", () => {
         { movement_id: "m3", product_id: A, qty: -2 }, // waste: not a sale
         { movement_id: "m4", product_id: A, qty: 40 },
       ],
-      products: [product(A, 10, 1), product(B, 0, 2)],
+      products: [product(A, 10, 1), product(B, 0, 2), { ...product("coffee", 0, 5), made_to_order: true }],
       ingredients: [ingredient("un", 1, 2), ingredient("eski", 0, 5, false), ingredient("seker", 9, 2)],
     });
     expect(day.revenue).toBe(80);

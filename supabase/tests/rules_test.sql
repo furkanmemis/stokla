@@ -99,12 +99,29 @@ select pg_temp.check(pg_temp.fails(format($$select public.count_ingredient(%L, 5
 select pg_temp.check(pg_temp.fails(format($$update products set price = 1 where id = %L$$, :'pogaca'), null) or
   (select price from products where id = :'pogaca') = 25, 'employee cannot change prices');
 
+-- ---------- made to order (coffee): sale uses the recipe, not shelf stock
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+insert into ingredients (business_id, name, unit, stock, min_stock) values (:'biz_a', 'Kahve çekirdeği', 'kg', 0.02, 0.5);
+insert into products (business_id, name, unit, price, stock, made_to_order, category) values (:'biz_a', 'Espresso', 'adet', 60, 0, true, 'Sıcak Kahveler');
+select id as espresso from products where name = 'Espresso' \gset
+select id as kahve from ingredients where name = 'Kahve çekirdeği' \gset
+insert into recipe_items values (:'espresso', :'kahve', 0.009);
+select pg_temp.act_as('00000000-0000-0000-0000-0000000000e1');
+select public.record_sale(jsonb_build_array(jsonb_build_object('id', :'espresso', 'qty', 2)), false) as coffee_sale \gset
+select pg_temp.check((select stock from ingredients where id = :'kahve') = 0.002, 'made-to-order sale uses recipe ingredients');
+select pg_temp.check((select stock from products where id = :'espresso') = 0, 'made-to-order sale leaves product stock alone');
+select pg_temp.check((select total from movements where id = :'coffee_sale') = 120, 'made-to-order sale is priced');
+select pg_temp.check(pg_temp.fails(format($$select public.record_sale('[{"id":"%s","qty":1}]'::jsonb, false)$$, :'espresso'), 'yetersiz malzeme'),
+  'made-to-order sale needs enough ingredients');
+select pg_temp.check(pg_temp.fails(format($$select public.record_production('[{"id":"%s","qty":1}]'::jsonb)$$, :'espresso'), 'Siparişle'),
+  'made-to-order products are not produced');
+
 -- ---------- admin: count + history
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
 select public.count_ingredient(:'yumurta', 4);
 select pg_temp.check((select qty from movement_lines l join movements m on m.id = l.movement_id
   where m.kind = 'count' and l.ingredient_id = :'yumurta') = -1.5, 'count stores the difference');
-select pg_temp.check((select count(*) from movements) = 5, 'every change wrote one movement');
+select pg_temp.check((select count(*) from movements) = 6, 'every change wrote one movement');
 
 -- ---------- isolation: admin B sees nothing of A
 select pg_temp.act_as('00000000-0000-0000-0000-00000000000b');

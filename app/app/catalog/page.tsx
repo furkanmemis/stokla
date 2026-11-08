@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Alert, param, type SearchParams } from "@/components/Alert";
 import { requireMember } from "@/lib/session";
 import { INGREDIENT_UNITS, PRODUCT_UNITS, num, tl, type Ingredient, type Product, type RecipeItem } from "@/lib/types";
+import { OTHER_CATEGORY, categoriesOf } from "@/lib/domain/stock";
 import { loadSampleData, saveIngredient, saveProduct, saveRecipeItem, setProductActive } from "../_actions/catalog";
 
 export const metadata: Metadata = { title: "Ürünler ve tarifler" };
@@ -18,6 +19,11 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
   const ingredients = (g ?? []) as Ingredient[];
   const recipe = (r ?? []) as RecipeItem[];
   const ing = new Map(ingredients.map((x) => [x.id, x]));
+  const categories = categoriesOf(products);
+  const groups = (categories.length ? categories : [null]).map((c) => ({
+    title: c,
+    items: c === null ? products : products.filter((x) => (x.category ?? OTHER_CATEGORY) === c),
+  }));
 
   return (
     <>
@@ -40,8 +46,12 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
           <div className="panel-head"><h2 id="h-products">Ürünler</h2></div>
           <p className="lead" style={{ marginBottom: 6 }}>Satılan ürünler. Fiyatını, gramajını ve tarifini düzenlemek için ürüne dokun.</p>
           {!products.length && <p className="empty">Henüz ürün yok.</p>}
+          <datalist id="categories">{categories.filter((c) => c !== OTHER_CATEGORY).map((c) => <option key={c} value={c} />)}</datalist>
+          {groups.map((group) => (
+          <div key={group.title ?? "all"}>
+          {group.title && <h3 style={{ margin: "18px 0 2px", fontSize: 14, color: "var(--muted)" }}>{group.title} ({group.items.length})</h3>}
           <ul className="list">
-            {products.map((x) => {
+            {group.items.map((x) => {
               const lines = recipe.filter((l) => l.product_id === x.id);
               return (
                 <li key={x.id} style={{ display: "block", opacity: x.active ? 1 : 0.6 }}>
@@ -50,7 +60,8 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
                       <span className="grow" style={{ flex: 1, minWidth: 0 }}>
                         <b>{x.name}{x.active ? "" : " (satışta değil)"}</b>
                         <small className="lead" style={{ display: "block", fontSize: 13 }}>
-                          {tl(Number(x.price))} / {x.unit}{x.weight_g ? `, ${x.weight_g} g` : ""}, vitrinde {num(Number(x.stock))}{lines.length ? "" : ", tarif yok"}
+                          {tl(Number(x.price))} / {x.unit}{x.weight_g ? `, ${x.weight_g} g` : ""}
+                          {x.made_to_order ? ", siparişle" : `, vitrinde ${num(Number(x.stock))}`}{lines.length ? "" : ", tarif yok"}
                         </small>
                       </span>
                       <span className="btn small quiet" aria-hidden="true">Düzenle</span>
@@ -100,6 +111,8 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
               );
             })}
           </ul>
+          </div>
+          ))}
           <details className="edit" style={{ marginTop: 10, borderTop: "1px solid var(--sunken)", paddingTop: 14 }}>
             <summary><span className="btn small">Yeni ürün ekle</span></summary>
             <form action={saveProduct}>
@@ -181,6 +194,14 @@ function ProductFields({ p }: { p?: Product }) {
         <label htmlFor={`barcode-${id}`}>Barkod <span className="hint">isteğe bağlı</span></label>
         <input className="input" id={`barcode-${id}`} name="barcode" inputMode="numeric" maxLength={32} defaultValue={p?.barcode ?? ""} />
       </div>
+      <div className="field">
+        <label htmlFor={`category-${id}`}>Kategori <span className="hint">satış ekranında filtre</span></label>
+        <input className="input" id={`category-${id}`} name="category" list="categories" maxLength={40} defaultValue={p?.category ?? ""} placeholder="Örn. Sıcak Kahveler" />
+      </div>
+      <label className="field" style={{ gridColumn: "1 / -1", flexDirection: "row", alignItems: "flex-start", gap: 10, fontWeight: 600 }}>
+        <input type="checkbox" name="made_to_order" defaultChecked={p?.made_to_order ?? false} style={{ width: 22, height: 22, marginTop: 1 }} />
+        <span>Siparişle hazırlanır <span className="hint" style={{ display: "block" }}>Kahve, çay gibi. Vitrin stoğu tutulmaz; satılınca tarifteki malzemeler düşer.</span></span>
+      </label>
     </div>
   );
 }

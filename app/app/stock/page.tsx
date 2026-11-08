@@ -13,7 +13,7 @@ export default async function StockPage({ searchParams }: { searchParams: Search
   const view = param((await searchParams).view) === "products" ? "products" : "ingredients";
   const [{ data: ings }, { data: prods }, { data: receipts }] = await Promise.all([
     supabase.from("ingredients").select("*").eq("active", true).order("name"),
-    supabase.from("products").select("*").eq("active", true).order("name"),
+    supabase.from("products").select("*").eq("active", true).eq("made_to_order", false).order("name"),
     supabase.from("movements").select("occurred_on, movement_lines(ingredient_id)").eq("kind", "receipt")
       .order("occurred_on", { ascending: false }).limit(300),
   ]);
