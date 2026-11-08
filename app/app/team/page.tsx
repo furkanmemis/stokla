@@ -4,7 +4,8 @@ import { Alert, param, type SearchParams } from "@/components/Alert";
 import { getPlaces, requireMember } from "@/lib/session";
 import { placeKind } from "@/lib/domain/places";
 import { ROLE_LABEL, type Invite, type Member, type Place } from "@/lib/types";
-import { addStaff, assignMember, createInvite, deleteInvite, removeMember } from "../_actions/team";
+import { PasswordInput } from "@/components/PasswordInput";
+import { addStaff, assignMember, deleteInvite, removeMember } from "../_actions/team";
 
 export const metadata: Metadata = { title: "Ekip" };
 
@@ -31,8 +32,8 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
   const invites = (i ?? []) as Invite[];
   const places = allPlaces.filter((p) => p.active);
   const placeName = new Map(allPlaces.map((p) => [p.id, p.name]));
-  const fresh = param(sp.code);
   const added = param(sp.added);
+  const state = param(sp.state);
 
   return (
     <>
@@ -48,48 +49,35 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
         <section className="panel notice" aria-live="polite">
           <h2>Çalışan eklendi</h2>
           <p className="lead" style={{ margin: 0 }}>
-            <b>{added}</b> adresiyle Stokla&apos;da <b>Kayıt ol</b> demesi yeterli. E-postasını doğrulayıp girince doğrudan seçtiğin yere bağlanır; kod gerekmez. Kayıt 30 gün bekler.
+            {state === "ready" && <>Hesap hazır. <b>{added}</b> ve verdiğin şifreyle hemen giriş yapabilir.</>}
+            {state === "confirm" && <>Hesap açıldı. <b>{added}</b> adresine bir doğrulama e-postası gitti; bağlantıya bir kez dokunduktan sonra verdiğin şifreyle giriş yapar.</>}
+            {state === "existing" && <><b>{added}</b> adresiyle zaten bir Stokla hesabı var. Kendi şifresiyle giriş yapınca seçtiğin yere bağlanır.</>}
           </p>
-        </section>
-      )}
-      {fresh && (
-        <section className="panel notice" style={{ textAlign: "center" }} aria-live="polite">
-          <p className="lead" style={{ margin: 0 }}>Davet kodu</p>
-          <p className="code">{fresh}</p>
-          <p className="lead" style={{ margin: "0 auto", maxWidth: "48ch" }}>Bu kodu çalışanına gönder. Stokla&apos;ya kayıt olup &quot;Davet koduyla katıl&quot; demeli. Kod 7 gün geçerli ve tek kullanımlık.</p>
+          <p className="lead" style={{ margin: "8px 0 0" }}>Şifresini değiştirmek isterse giriş sayfasındaki &quot;Şifremi unuttum&quot;u kullanabilir.</p>
         </section>
       )}
 
       {places.length > 0 && (
-        <div className="row">
-          <form className="panel wide" action={addStaff} aria-labelledby="h-add">
-            <h2 id="h-add">Çalışan ekle</h2>
-            <div className="fields three">
-              <div className="field">
-                <label htmlFor="st-name">Adı</label>
-                <input className="input" id="st-name" name="name" required maxLength={60} placeholder="Örn. Ayşe" />
-              </div>
-              <div className="field">
-                <label htmlFor="st-email">E-posta</label>
-                <input className="input" id="st-email" name="email" type="email" required maxLength={200} placeholder="ayse@ornek.com" autoComplete="off" />
-              </div>
-              <div className="field">
-                <label htmlFor="st-place">Çalışacağı yer</label>
-                <PlaceSelect places={places} id="st-place" />
-              </div>
-            </div>
-            <button className="btn" type="submit">Çalışanı ekle</button>
-          </form>
-          <form className="panel" action={createInvite} aria-labelledby="h-code">
-            <h2 id="h-code">Ya da davet kodu ver</h2>
-            <p className="lead" style={{ marginTop: 0 }}>E-postasını bilmiyorsan 6 haneli bir kod oluştur.</p>
+        <form className="panel" action={addStaff} aria-labelledby="h-add">
+          <h2 id="h-add">Çalışan ekle</h2>
+          <p className="lead" style={{ marginTop: 0 }}>Hesabı sen açarsın: çalışan bu e-posta ve şifreyle giriş yapar, doğrudan seçtiğin yere bağlanır.</p>
+          <div className="fields four">
             <div className="field">
-              <label htmlFor="inv-place">Çalışacağı yer</label>
-              <PlaceSelect places={places} id="inv-place" />
+              <label htmlFor="st-name">Adı</label>
+              <input className="input" id="st-name" name="name" required maxLength={60} placeholder="Örn. Ayşe" autoComplete="off" />
             </div>
-            <button className="btn secondary" type="submit">Kod oluştur</button>
-          </form>
-        </div>
+            <div className="field">
+              <label htmlFor="st-email">E-posta</label>
+              <input className="input" id="st-email" name="email" type="email" required maxLength={200} placeholder="ayse@ornek.com" autoComplete="off" />
+            </div>
+            <PasswordInput id="st-password" name="password" label="Şifre" autoComplete="new-password" hint="(en az 8, harf ve rakam)" />
+            <div className="field">
+              <label htmlFor="st-place">Çalışacağı yer</label>
+              <PlaceSelect places={places} id="st-place" />
+            </div>
+          </div>
+          <button className="btn" type="submit">Çalışanı ekle</button>
+        </form>
       )}
 
       <div className="row">
@@ -122,13 +110,13 @@ export default async function TeamPage({ searchParams }: { searchParams: SearchP
           </ul>
         </section>
         <section className="panel" aria-labelledby="h-invites">
-          <h2 id="h-invites">Katılması beklenenler</h2>
+          <h2 id="h-invites">İlk girişi bekleyenler</h2>
           {invites.length ? (
             <ul className="list">
               {invites.map((x) => (
                 <li key={x.code}>
                   <span className="grow">
-                    {x.email ? <b>{x.name ?? x.email}</b> : <b style={{ letterSpacing: ".14em" }}>{x.code}</b>}
+                    <b>{x.name ?? x.email ?? x.code}</b>
                     <small>{[x.email, x.location_id ? placeName.get(x.location_id) : null, `${date(x.expires_at)} tarihine kadar`].filter(Boolean).join(" · ")}</small>
                   </span>
                   <form action={deleteInvite}>

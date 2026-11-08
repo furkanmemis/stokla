@@ -25,7 +25,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Sea
   }
 
   return (
-    <AuthCard title="Kayıt ol" intro="Dükkânın için ücretsiz bir hesap aç. Çalışanların, sana verilen davet koduyla aynı ekrandan kayıt olur."
+    <AuthCard title="Kayıt ol" intro="Dükkânın için ücretsiz bir hesap aç. Çalışanlarının hesabını sonra Ekip bölümünden sen açarsın."
       footer={<>Zaten hesabın var mı? <Link href="/login">Giriş yap</Link></>}>
       <Alert error={param(sp.error)} />
       <form action={signUp} style={{ marginTop: 14 }}>

@@ -14,7 +14,7 @@ Küçük işletmeler için **telefondan kullanılan, basit, rol odaklı stok tak
 
 - **Yerler (şube / bayi):** bir yer üretim yapar, satış yapar ya da ikisini birden. Her yerin malzeme stoğu ayrıdır.
 - **Ürün havuzu:** hangi yerde üretilirse üretilsin, ürünler ortak havuza girer. Satış yapan yerler vitrinlerine havuzdan alır; satış vitrinden düşer. Kahve, çay gibi siparişle hazırlananlar satış yerinin kendi malzemesinden düşer.
-- Admin çalışanı **ad, e-posta ve yer** girerek ekler; çalışan o e-postayla kayıt olunca kod girmeden o yere bağlanır. İsterse **6 haneli davet kodu** da verebilir.
+- Admin çalışanın hesabını **ad, e-posta, şifre ve yer** girerek kendisi açar; çalışan bu bilgilerle girer ve doğrudan o yere bağlanır.
 - Stok yalnızca hareketlerle değişir (satış, fire, üretim, havuzdan alma, mal girişi, sayım). Her hareket tek işlemde kaydedilir; stok ve geçmiş hiçbir zaman çelişmez.
 - Mal girişinde alış tarihi, üretimde üretim tarihi girilir (geçmiş bir gün olabilir); ikisinde de son kullanma tarihi isteğe bağlıdır. Üretimde her partinin gramajı kaydedilir.
 - Her dükkânın verisi veritabanı düzeyinde (RLS) diğerlerinden ayrıdır.

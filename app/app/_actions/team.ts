@@ -1,40 +1,52 @@
 "use server";
 
-// Admin-only team management: adding people (by e-mail or invite code), moving them between places,
-// removing them.
+// Admin-only team management: adding people, moving them between places, removing them.
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireMember } from "@/lib/session";
-import { checkEmail } from "@/lib/domain/auth";
+import { createClient as createAnonClient } from "@supabase/supabase-js";
+import { authMessage, checkEmail, checkNewPassword } from "@/lib/domain/auth";
+import { authCallback } from "@/lib/site";
 import { dbMessage } from "@/lib/db";
 import { redirectWith, text } from "@/lib/form";
 
 const PAGE = "/app/team";
 
-/** Adds an employee by name and e-mail; they join the chosen place when they sign up with that address. */
+/**
+ * Admin adds an employee directly: name, e-mail, a starting password and the place they work at.
+ * The account is opened with the public sign-up (the app never holds a secret key), using a separate
+ * client so the admin stays signed in; the person joins the place on their first sign-in.
+ */
 export async function addStaff(fd: FormData) {
   const { supabase } = await requireMember(["admin"]);
   const name = text(fd, "name", 60);
-  const email = text(fd, "email", 200).toLowerCase();
   const place = text(fd, "place", 40);
   if (!name) redirectWith(PAGE, "error", "Çalışanın adını yaz.");
-  const mail = checkEmail(email);
+  const mail = checkEmail(fd.get("email"));
   if (!mail.ok) redirectWith(PAGE, "error", mail.error);
+  const password = checkNewPassword(fd.get("password"));
+  if (!password.ok) redirectWith(PAGE, "error", password.error);
   if (!place) redirectWith(PAGE, "error", "Çalışacağı yeri seç.");
-  const { error } = await supabase.rpc("add_staff", { p_name: name, p_email: email, p_place: place });
-  if (error) redirectWith(PAGE, "error", dbMessage(error, "Çalışan eklenemedi."));
-  revalidatePath(PAGE);
-  redirect(`${PAGE}?added=${encodeURIComponent(email)}`);
-}
 
-export async function createInvite(fd: FormData) {
-  const { supabase } = await requireMember(["admin"]);
-  const place = text(fd, "place", 40);
-  if (!place) redirectWith(PAGE, "error", "Çalışacağı yeri seç.");
-  const { data, error } = await supabase.rpc("create_invite", { p_place: place });
-  if (error || typeof data !== "string") redirectWith(PAGE, "error", dbMessage(error, "Davet kodu oluşturulamadı."));
+  const { data: code, error } = await supabase.rpc("add_staff", { p_name: name, p_email: mail.value, p_place: place });
+  if (error || typeof code !== "string") redirectWith(PAGE, "error", dbMessage(error, "Çalışan eklenemedi."));
+
+  const signup = createAnonClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const { data, error: authError } = await signup.auth.signUp({
+    email: mail.value,
+    password: password.value,
+    options: { emailRedirectTo: await authCallback("/app"), data: { name } },
+  });
+  if (authError) {
+    await supabase.from("invites").delete().eq("code", code);
+    redirectWith(PAGE, "error", authMessage(authError, "Hesap açılamadı. Tekrar dene."));
+  }
   revalidatePath(PAGE);
-  redirect(`${PAGE}?code=${encodeURIComponent(data)}`);
+  // An address that already has an account comes back without identities: it joins with its own password.
+  const state = data.user?.identities?.length === 0 ? "existing" : data.session ? "ready" : "confirm";
+  redirect(`${PAGE}?added=${encodeURIComponent(mail.value)}&state=${state}`);
 }
 
 export async function assignMember(fd: FormData) {
@@ -49,7 +61,7 @@ export async function assignMember(fd: FormData) {
 export async function deleteInvite(fd: FormData) {
   const { supabase } = await requireMember(["admin"]);
   const { error } = await supabase.from("invites").delete().eq("code", text(fd, "code", 10));
-  if (error) redirectWith(PAGE, "error", "Davet iptal edilemedi.");
+  if (error) redirectWith(PAGE, "error", "Kayıt iptal edilemedi.");
   revalidatePath(PAGE);
 }
 

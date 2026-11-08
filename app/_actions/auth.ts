@@ -1,24 +1,16 @@
 "use server";
 
 // Account actions: sign in, sign up, sign out and password reset (e-mail + password).
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { redirectWith, text } from "@/lib/form";
 import { authMessage, checkEmail, checkNewPassword } from "@/lib/domain/auth";
+import { authCallback } from "@/lib/site";
 
 const isBot = (fd: FormData) => text(fd, "website") !== ""; // hidden honeypot field
 
-async function siteOrigin() {
-  const fixed = process.env.NEXT_PUBLIC_SITE_URL;
-  if (fixed) return fixed.replace(/\/$/, "");
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  return `${proto}://${host}`;
-}
-const callback = async (next: string) => `${await siteOrigin()}/auth/callback?next=${encodeURIComponent(next)}`;
+const callback = authCallback;
 
 export async function signIn(fd: FormData) {
   const email = checkEmail(fd.get("email"));

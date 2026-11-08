@@ -250,7 +250,7 @@ table.data button.rowbtn:focus-visible { outline: 3px solid var(--brand); outlin
 .checks legend { font-weight: 700; font-size: 14px; margin-bottom: 6px; padding: 0; }
 .checks label { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; min-height: 44px; }
 .checks input { width: 20px; height: 20px; accent-color: var(--brand); }
-.fields.three { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.fields.three, .fields.four { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .list li.member { flex-wrap: wrap; }
 .inline-form { display: flex; gap: 8px; align-items: center; }
 .inline-form .input { min-height: 40px; padding: 6px 10px; width: auto; max-width: 220px; }
